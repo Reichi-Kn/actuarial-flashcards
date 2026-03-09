@@ -1622,12 +1622,12 @@ function updateReviewBadge() {
     // オーバーレイ
     const ratio = Math.min(Math.abs(dx) / DECIDE, 1);
     if (dx > 15) {
-      overlay.textContent = '✓';
-      overlay.style.background = `rgba(74,103,65,${ratio * 0.88})`;
-      overlay.style.opacity = ratio;
-    } else if (dx < -15) {
       overlay.textContent = '✗';
       overlay.style.background = `rgba(139,58,42,${ratio * 0.88})`;
+      overlay.style.opacity = ratio;
+    } else if (dx < -15) {
+      overlay.textContent = '✓';
+      overlay.style.background = `rgba(74,103,65,${ratio * 0.88})`;
       overlay.style.opacity = ratio;
     } else {
       overlay.style.opacity = 0;
@@ -1699,9 +1699,9 @@ function updateReviewBadge() {
     if (dragEnabled) {
       // 答え表示中のドラッグ終了
       if (dx > DECIDE && dy < 90) {
-        flyOut('right', () => markResult(true));
+        flyOut('right', () => markResult(false));
       } else if (dx < -DECIDE && dy < 90) {
-        flyOut('left', () => markResult(false));
+        flyOut('left', () => markResult(true));
       } else {
         snapBack();
       }
