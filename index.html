@@ -144,7 +144,7 @@ MathJax = {
     width: 100%;
     min-height: 400px;
     transform-style: preserve-3d;
-    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s;
     cursor: pointer;
   }
   .card-wrapper.flipped { transform: rotateY(180deg); }
@@ -684,7 +684,7 @@ MathJax = {
         position:absolute;inset:0;z-index:10;border-radius:4px;
         display:flex;align-items:center;justify-content:center;
         font-size:4rem;color:white;font-weight:700;
-        opacity:0;transition:opacity 0.15s;pointer-events:none;
+        opacity:0;transition:opacity 0.1s;pointer-events:none;
         text-shadow:0 2px 12px rgba(0,0,0,0.3);
       "></div>
       <div class="card-face card-front" id="cardFront">
@@ -1589,78 +1589,108 @@ function updateReviewBadge() {
 }
 
 // =====================================================
-// TOUCH / SWIPE SUPPORT  (Anki style)
-//   表面タップ          → カードをめくる
-//   答え表示後 右スワイプ → ✓ 正解
-//   答え表示後 左スワイプ → ✗ 不正解
-//   表面で 左/右スワイプ  → 前/次のカード
+// TOUCH / SWIPE SUPPORT
+//   タップ              → カードをめくる
+//   答え表示後ドラッグ   → 右=正解 / 左=不正解（指に追従）
+//   問題表示中スワイプ   → 右=前 / 左=次
 // =====================================================
 (function() {
-  let touchStartX = 0, touchStartY = 0;
-  let touchEndX   = 0, touchEndY   = 0;
-  let startTime = 0;
-  const MIN_SWIPE  = 50;   // px
-  const MAX_VERT   = 80;   // ignore if too vertical
-  const MAX_TAP_MS = 250;  // ms for tap detection
+  let startX = 0, startY = 0;
+  let isDragging = false;
+  let dragEnabled = false; // 答え表示後のみドラッグ有効
+  const wrapper = document.getElementById('cardWrapper');
+  const overlay = document.getElementById('swipeOverlay');
+  const DECIDE = 100; // この距離を超えたら確定
 
-  const cardArea = document.getElementById('cardArea');
+  function setTransform(dx) {
+    const rotate = dx * 0.06;
+    wrapper.style.transition = 'none';
+    wrapper.style.transform = `rotateY(180deg) translateX(${dx}px) rotate(${-rotate}deg)`;
 
-  cardArea.addEventListener('touchstart', e => {
-    touchStartX = e.changedTouches[0].clientX;
-    touchStartY = e.changedTouches[0].clientY;
-    startTime   = Date.now();
-  }, { passive: true });
-
-  cardArea.addEventListener('touchend', e => {
-    touchEndX = e.changedTouches[0].clientX;
-    touchEndY = e.changedTouches[0].clientY;
-    handleGesture();
-  }, { passive: true });
-
-  function handleGesture() {
-    const dx   = touchEndX - touchStartX;
-    const dy   = touchEndY - touchStartY;
-    const adx  = Math.abs(dx);
-    const ady  = Math.abs(dy);
-    const dt   = Date.now() - startTime;
-    const isSwipe = adx > MIN_SWIPE && ady < MAX_VERT;
-
-    if (!isSwipe) return; // tap は onclick に任せる
-
-    if (isFlipped) {
-      // 答え表示中 → 左右で正解/不正解
-      if (dx > MIN_SWIPE) {
-        // 右スワイプ → 正解
-        triggerSwipeFeedback('correct');
-        setTimeout(() => markResult(true), 300);
-      } else if (dx < -MIN_SWIPE) {
-        // 左スワイプ → 不正解
-        triggerSwipeFeedback('incorrect');
-        setTimeout(() => markResult(false), 300);
-      }
+    // オーバーレイの色と透明度
+    const ratio = Math.min(Math.abs(dx) / DECIDE, 1);
+    if (dx > 10) {
+      overlay.textContent = '✓';
+      overlay.style.background = `rgba(74,103,65,${ratio * 0.85})`;
+      overlay.style.opacity = ratio;
+    } else if (dx < -10) {
+      overlay.textContent = '✗';
+      overlay.style.background = `rgba(139,58,42,${ratio * 0.85})`;
+      overlay.style.opacity = ratio;
     } else {
-      // 問題表示中 → 左右で前後移動
-      if (dx < -MIN_SWIPE) nextCard();
-      else if (dx > MIN_SWIPE) prevCard();
+      overlay.style.opacity = 0;
     }
   }
 
-  // スワイプ時の視覚フィードバック
-  function triggerSwipeFeedback(type) {
-    const wrapper = document.getElementById('cardWrapper');
-    const overlay = document.getElementById('swipeOverlay');
-    const isCorrect = type === 'correct';
-    overlay.textContent = isCorrect ? '✓' : '✗';
-    overlay.style.background = isCorrect
-      ? 'rgba(74,103,65,0.85)' : 'rgba(139,58,42,0.85)';
-    overlay.style.opacity = '1';
-    wrapper.style.transform = isCorrect
-      ? 'rotateY(180deg) translateX(60px)' : 'rotateY(180deg) translateX(-60px)';
-    setTimeout(() => {
-      overlay.style.opacity = '0';
-      wrapper.style.transform = '';
-    }, 280);
+  function resetTransform(animate) {
+    wrapper.style.transition = animate ? 'transform 0.4s cubic-bezier(0.4,0,0.2,1)' : 'none';
+    wrapper.style.transform = 'rotateY(180deg)';
+    overlay.style.opacity = 0;
   }
+
+  function flyOut(direction) {
+    const tx = direction === 'right' ? 400 : -400;
+    const rot = direction === 'right' ? -25 : 25;
+    wrapper.style.transition = 'transform 0.35s ease-in, opacity 0.35s';
+    wrapper.style.transform = `rotateY(180deg) translateX(${tx}px) rotate(${-rot}deg)`;
+    wrapper.style.opacity = '0';
+    setTimeout(() => {
+      wrapper.style.transition = 'none';
+      wrapper.style.opacity = '1';
+      overlay.style.opacity = 0;
+      if (direction === 'right') markResult(true);
+      else markResult(false);
+    }, 350);
+  }
+
+  // touchstart
+  wrapper.addEventListener('touchstart', e => {
+    if (e.target.closest('button')) return;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    isDragging = false;
+    dragEnabled = isFlipped; // 答え表示後のみ
+  }, { passive: true });
+
+  // touchmove
+  wrapper.addEventListener('touchmove', e => {
+    if (!dragEnabled) return;
+    const dx = e.touches[0].clientX - startX;
+    const dy = Math.abs(e.touches[0].clientY - startY);
+    if (dy > 60) return;
+    isDragging = true;
+    setTransform(dx);
+  }, { passive: true });
+
+  // touchend
+  wrapper.addEventListener('touchend', e => {
+    if (!dragEnabled || !isDragging) {
+      // タップ or 問題表示中のスワイプ
+      const dx = e.changedTouches[0].clientX - startX;
+      const dy = Math.abs(e.changedTouches[0].clientY - startY);
+      if (!isFlipped && Math.abs(dx) > 50 && dy < 80) {
+        if (dx < 0) nextCard();
+        else prevCard();
+      }
+      isDragging = false;
+      return;
+    }
+    const dx = e.changedTouches[0].clientX - startX;
+    isDragging = false;
+    if (dx > DECIDE) {
+      flyOut('right');
+    } else if (dx < -DECIDE) {
+      flyOut('left');
+    } else {
+      resetTransform(true);
+    }
+  }, { passive: true });
+
+  // touchcancel
+  wrapper.addEventListener('touchcancel', () => {
+    if (isFlipped) resetTransform(true);
+    isDragging = false;
+  }, { passive: true });
 })();
 
 
