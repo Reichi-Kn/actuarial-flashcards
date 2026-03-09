@@ -104,6 +104,7 @@ MathJax = {
     max-width: 860px;
     margin: 0 auto;
     padding: 28px 20px 60px;
+    overflow-x: clip; /* カードが横にはみ出せるが背景は動かない */
   }
 
   /* Category tabs */
@@ -137,6 +138,9 @@ MathJax = {
   .card-area {
     perspective: 1200px;
     margin-bottom: 28px;
+    /* カードのみ動かすため overflow visible */
+    overflow: visible;
+    position: relative;
   }
 
   .card-wrapper {
@@ -146,6 +150,7 @@ MathJax = {
     transform-style: preserve-3d;
     transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s;
     cursor: pointer;
+    will-change: transform;
   }
   .card-wrapper.flipped { transform: rotateY(180deg); }
 
@@ -1590,105 +1595,129 @@ function updateReviewBadge() {
 
 // =====================================================
 // TOUCH / SWIPE SUPPORT
-//   タップ              → カードをめくる
-//   答え表示後ドラッグ   → 右=正解 / 左=不正解（指に追従）
-//   問題表示中スワイプ   → 右=前 / 左=次
+//   タップ                → カードをめくる
+//   答え表示後 左右ドラッグ → カードが指に追従、離すと正解/不正解/戻る
+//   問題表示中 左右スワイプ → 次/前のカード
 // =====================================================
 (function() {
   let startX = 0, startY = 0;
   let isDragging = false;
-  let dragEnabled = false; // 答え表示後のみドラッグ有効
+  let dragEnabled = false;
+  let animating = false;
+  const DECIDE = 110; // 確定距離(px)
+
   const wrapper = document.getElementById('cardWrapper');
   const overlay = document.getElementById('swipeOverlay');
-  const DECIDE = 100; // この距離を超えたら確定
 
-  function setTransform(dx) {
-    const rotate = dx * 0.06;
+  // ドラッグ中: カードをX方向に移動 + 少し傾ける
+  function applyDrag(dx) {
+    const rotate = dx * 0.04;
     wrapper.style.transition = 'none';
-    wrapper.style.transform = `rotateY(180deg) translateX(${dx}px) rotate(${-rotate}deg)`;
-
-    // オーバーレイの色と透明度
+    // 裏面表示中(rotateY180)でも、translateXはそのまま右向きに動く
+    if (isFlipped) {
+      wrapper.style.transform = `rotateY(180deg) translateX(${dx}px) rotate(${rotate}deg)`;
+    } else {
+      wrapper.style.transform = `translateX(${dx}px) rotate(${rotate}deg)`;
+    }
+    // オーバーレイ
     const ratio = Math.min(Math.abs(dx) / DECIDE, 1);
-    if (dx > 10) {
+    if (dx > 15) {
       overlay.textContent = '✓';
-      overlay.style.background = `rgba(74,103,65,${ratio * 0.85})`;
+      overlay.style.background = `rgba(74,103,65,${ratio * 0.88})`;
       overlay.style.opacity = ratio;
-    } else if (dx < -10) {
+    } else if (dx < -15) {
       overlay.textContent = '✗';
-      overlay.style.background = `rgba(139,58,42,${ratio * 0.85})`;
+      overlay.style.background = `rgba(139,58,42,${ratio * 0.88})`;
       overlay.style.opacity = ratio;
     } else {
       overlay.style.opacity = 0;
     }
   }
 
-  function resetTransform(animate) {
-    wrapper.style.transition = animate ? 'transform 0.4s cubic-bezier(0.4,0,0.2,1)' : 'none';
-    wrapper.style.transform = 'rotateY(180deg)';
+  // 元の位置に戻る
+  function snapBack() {
+    wrapper.style.transition = 'transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+    wrapper.style.transform = isFlipped ? 'rotateY(180deg)' : '';
+    overlay.style.transition = 'opacity 0.3s';
     overlay.style.opacity = 0;
   }
 
-  function flyOut(direction) {
-    const tx = direction === 'right' ? 400 : -400;
-    const rot = direction === 'right' ? -25 : 25;
-    wrapper.style.transition = 'transform 0.35s ease-in, opacity 0.35s';
-    wrapper.style.transform = `rotateY(180deg) translateX(${tx}px) rotate(${-rot}deg)`;
+  // 確定: 指定方向に飛ばす
+  function flyOut(direction, onDone) {
+    animating = true;
+    const tx = direction === 'right' ? window.innerWidth : -window.innerWidth;
+    const rot = direction === 'right' ? 20 : -20;
+    const base = isFlipped ? 'rotateY(180deg) ' : '';
+    wrapper.style.transition = 'transform 0.32s ease-in, opacity 0.32s ease-in';
+    wrapper.style.transform = `${base}translateX(${tx}px) rotate(${rot}deg)`;
     wrapper.style.opacity = '0';
     setTimeout(() => {
       wrapper.style.transition = 'none';
+      wrapper.style.transform = '';
       wrapper.style.opacity = '1';
       overlay.style.opacity = 0;
-      if (direction === 'right') markResult(true);
-      else markResult(false);
-    }, 350);
+      animating = false;
+      onDone();
+    }, 340);
   }
 
   // touchstart
   wrapper.addEventListener('touchstart', e => {
+    if (animating) return;
     if (e.target.closest('button')) return;
     startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
     isDragging = false;
-    dragEnabled = isFlipped; // 答え表示後のみ
+    dragEnabled = isFlipped; // 答え表示後のみドラッグで正解/不正解
   }, { passive: true });
 
   // touchmove
   wrapper.addEventListener('touchmove', e => {
-    if (!dragEnabled) return;
+    if (animating) return;
     const dx = e.touches[0].clientX - startX;
     const dy = Math.abs(e.touches[0].clientY - startY);
-    if (dy > 60) return;
-    isDragging = true;
-    setTransform(dx);
+    if (dy > 70 && !isDragging) return; // 縦スクロール優先
+    if (Math.abs(dx) > 8 || isDragging) {
+      isDragging = true;
+      if (dragEnabled) {
+        applyDrag(dx);
+      }
+    }
   }, { passive: true });
 
   // touchend
   wrapper.addEventListener('touchend', e => {
-    if (!dragEnabled || !isDragging) {
-      // タップ or 問題表示中のスワイプ
-      const dx = e.changedTouches[0].clientX - startX;
-      const dy = Math.abs(e.changedTouches[0].clientY - startY);
-      if (!isFlipped && Math.abs(dx) > 50 && dy < 80) {
+    if (animating) return;
+    const dx = e.changedTouches[0].clientX - startX;
+    const dy = Math.abs(e.changedTouches[0].clientY - startY);
+
+    if (!isDragging) {
+      // タップ → flipCard は onclick が処理
+      return;
+    }
+
+    if (dragEnabled) {
+      // 答え表示中のドラッグ終了
+      if (dx > DECIDE && dy < 90) {
+        flyOut('right', () => markResult(true));
+      } else if (dx < -DECIDE && dy < 90) {
+        flyOut('left', () => markResult(false));
+      } else {
+        snapBack();
+      }
+    } else {
+      // 問題表示中のスワイプ → 前/次カード
+      snapBack();
+      if (Math.abs(dx) > 50 && dy < 80) {
         if (dx < 0) nextCard();
         else prevCard();
       }
-      isDragging = false;
-      return;
     }
-    const dx = e.changedTouches[0].clientX - startX;
     isDragging = false;
-    if (dx > DECIDE) {
-      flyOut('right');
-    } else if (dx < -DECIDE) {
-      flyOut('left');
-    } else {
-      resetTransform(true);
-    }
   }, { passive: true });
 
-  // touchcancel
   wrapper.addEventListener('touchcancel', () => {
-    if (isFlipped) resetTransform(true);
+    snapBack();
     isDragging = false;
   }, { passive: true });
 })();
