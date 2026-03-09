@@ -15,8 +15,8 @@ MathJax = {
   },
   svg: {
     fontCache: 'global',
-    scale: 1.15,
-    minScale: 0.5,
+    scale: 1.0,
+    minScale: 0.4,
     mtextInheritFont: false
   },
   options: {
@@ -146,7 +146,7 @@ MathJax = {
   .card-wrapper {
     position: relative;
     width: 100%;
-    min-height: 400px;
+    min-height: 340px;
     transform-style: preserve-3d;
     transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s;
     cursor: pointer;
@@ -160,10 +160,20 @@ MathJax = {
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
     border-radius: 4px;
-    padding: 36px 44px;
+    padding: 22px 28px;
     display: flex;
     flex-direction: column;
-    min-height: 400px;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  /* 表面・裏面ともに内容に合わせて高さを確保するためダミーを用意 */
+  .card-sizer {
+    visibility: hidden;
+    padding: 22px 28px;
+    display: flex;
+    flex-direction: column;
+    pointer-events: none;
+    min-height: 340px;
   }
 
   .card-front {
@@ -227,10 +237,10 @@ MathJax = {
   .card-back .card-category-badge { color: var(--rust); }
 
   .card-question {
-    font-size: 1.3rem;
+    font-size: clamp(0.82rem, 2.4vw, 1.2rem);
     font-family: 'Cormorant Garamond', serif;
     font-weight: 600;
-    line-height: 1.8;
+    line-height: 1.65;
     color: var(--ink);
     flex: 1;
     display: flex;
@@ -238,9 +248,11 @@ MathJax = {
     align-items: center;
     justify-content: center;
     text-align: center;
-    overflow-x: auto;
+    width: 100%;
+    word-break: break-word;
+    overflow-wrap: break-word;
   }
-
+  .card-question
   .card-hint {
     font-size: 0.75rem;
     color: #b0a090;
@@ -263,36 +275,16 @@ MathJax = {
   }
 
   .card-answer {
-    font-size: 1.0rem;
-    line-height: 2.2;
+    font-size: clamp(0.78rem, 2.2vw, 0.98rem);
+    line-height: 2.0;
     color: #2a1f18;
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
   }
-  .card-answer mjx-container {
-    display: block !important;
-    margin: 10px auto !important;
-    overflow-x: auto;
-    overflow-y: hidden;
-    text-align: center !important;
-  }
-  .card-answer mjx-container[display="true"] {
-    margin: 14px auto !important;
-  }
-  /* Inline math in answer */
-  .card-answer p mjx-container,
-  .card-answer b mjx-container {
-    display: inline !important;
-    margin: 0 2px !important;
-  }
-  /* Question math */
-  .card-question mjx-container {
-    display: block !important;
-    margin: 8px auto !important;
-    text-align: center !important;
-  }
-
+  .card-answer  .card-answer  /* Inline math in answer */
+  .card-answer p  /* Question math */
+  .card-question
   .card-answer .formula-line {
     font-family: 'JetBrains Mono', monospace;
     font-size: 0.9rem;
@@ -484,34 +476,9 @@ MathJax = {
     margin: 16px 0;
   }
 
-  /* MathJax SVG styling */
-  mjx-container {
-    overflow-x: auto;
-    overflow-y: hidden;
-    max-width: 100%;
-  }
-  mjx-container[display="true"] {
-    display: block !important;
-    margin: 1em auto !important;
-    text-align: center !important;
-  }
-  .card-answer mjx-container[display="true"] {
-    background: rgba(30,58,95,0.04);
-    border-left: 3px solid var(--deep-blue);
-    padding: 10px 16px;
-    border-radius: 0 3px 3px 0;
-    margin: 10px 0 !important;
-    text-align: left !important;
-  }
-  .card-question mjx-container[display="true"] {
-    margin: 10px auto !important;
-    text-align: center !important;
-  }
-  /* Ensure SVG scales properly */
-  mjx-container svg {
-    max-width: 100%;
-    height: auto;
-  }
+
+  .card-answer
+
 
   /* ===================== MOBILE RESPONSIVE ===================== */
   @media (max-width: 600px) {
@@ -560,8 +527,15 @@ MathJax = {
     /* Card */
     .card-wrapper { min-height: 360px; }
     .card-face {
-      padding: 22px 20px;
-      min-height: 360px;
+      padding: 14px 12px;
+    }
+    .card-question {
+      font-size: clamp(0.75rem, 3.8vw, 1.0rem);
+      line-height: 1.55;
+    }
+    .card-answer {
+      font-size: clamp(0.72rem, 3.2vw, 0.88rem);
+      line-height: 1.85;
     }
     .card-question {
       font-size: 1.1rem;
@@ -577,12 +551,8 @@ MathJax = {
     .card-answer-title { font-size: 0.78rem; }
 
     /* MathJax display math on mobile */
-    .card-answer mjx-container[display="true"] {
-      padding: 8px 10px;
-      margin: 8px 0 !important;
-      overflow-x: auto;
-    }
-    mjx-container svg { font-size: 90% !important; }
+
+
 
     /* Controls */
     .controls { gap: 10px; }
@@ -630,6 +600,21 @@ MathJax = {
     #statsModal > div h2 { font-size: 1.3rem; }
   }
 
+
+  /* ── MathJax 統一スタイル ──────────────────── */
+  /* インライン数式: inline のまま */
+  /* ディスプレイ数式($$...$$): ブロック表示 */
+  /* 答え面のディスプレイ数式: 左ボーダー付き */
+  .card-answer  /* 問題文のディスプレイ数式: 中央揃え */
+  .card-question
+  /* ── MathJax 統一スタイル ── */
+  /* インライン $...$ → inline */
+  mjx-container { display: inline !important; margin: 0 1px !important; vertical-align: middle; }
+  /* ディスプレイ $$...$$ → block */
+  mjx-container[display="true"] { display: block !important; margin: 10px 0 !important; overflow-x: auto; max-width: 100%; }
+  .card-answer mjx-container[display="true"] { background: rgba(30,58,95,0.04); border-left: 3px solid var(--deep-blue); padding: 8px 12px; border-radius: 0 3px 3px 0; }
+  .card-question mjx-container[display="true"] { text-align: center !important; margin: 8px auto !important; }
+  mjx-container svg { max-width: 100%; height: auto; }
 </style>
 </head>
 <body>
@@ -952,7 +937,7 @@ $$E[X] = \\frac{1}{\\lambda}, \\qquad \\mathrm{Var}(X) = \\frac{1}{\\lambda^2}$$
   },
   {
     category: "連続分布",
-    q: "カイ二乗分布 $\\Gamma\\!\\left(\\tfrac{n}{2},\\tfrac{1}{2}\\right)$",
+    q: "カイ二乗分布 $\\chi^2(n) = \\Gamma\\!\\left(\\tfrac{n}{2},\\tfrac{1}{2}\\right)$",
     a: `$$f(x) = \\frac{1}{2^{n/2}\\Gamma(n/2)}x^{n/2-1}e^{-x/2}, \\quad x>0$$
 $$E[X] = n, \\qquad \\mathrm{Var}(X) = 2n$$`
   },
@@ -1049,7 +1034,7 @@ $$P(|X-\\mu|\\geq \\varepsilon)\\leq\\frac{\\mathrm{Var}(X)}{\\varepsilon^2}$$
   },
   {
     category: "統計的推定",
-    q: "有限母集団の標本平均の期待値と分散（$N,n,\\mu,\\sigma^2$）",
+    q: "有限母集団の標本平均の期待値と分散",
     a: `$$E[\\bar{X}] = \\mu$$
 $$\\mathrm{Var}(\\bar{X}) = \\frac{\\sigma^2}{n}\\cdot\\frac{N-n}{N-1}$$
 <span class="param">有限母集団修正因子 $(N-n)/(N-1)$</span><br>
@@ -1132,7 +1117,7 @@ $r$: 標本相関係数`
   },
   {
     category: "区間推定",
-    q: "二次元正規母集団：母相関係数の推定（Fisherの $z$ 変換）",
+    q: "母相関係数の推定（Fisherの $z$ 変換）",
     a: `Fisherの $z$ 変換: $z = \\tanh^{-1}(r) = \\dfrac{1}{2}\\ln\\dfrac{1+r}{1-r}$<br>
 $$z \\approx N\\!\\left(\\tanh^{-1}(\\rho),\\;\\frac{1}{n-3}\\right)$$
 信頼区間は $z$ の信頼区間を逆変換して得る`
@@ -1210,7 +1195,7 @@ $m$: 推定したパラメータ数，$E_i\\geq 5$ が望ましい`
   },
   {
     category: "仮説検定",
-    q: "独立性検定の統計量と分布（$r\\times c$ 分割表）",
+    q: "独立性検定（$r\\times c$ 分割表）",
     a: `$$\\chi^2 = \\sum_{i,j}\\frac{(O_{ij}-E_{ij})^2}{E_{ij}}, \\quad E_{ij}=\\frac{R_i C_j}{n}$$
 $$\\chi^2 \\sim \\chi^2((r-1)(c-1))$$`
   },
@@ -1222,7 +1207,7 @@ $$\\begin{array}{c|cc}& + & - \\\\ \\hline A & a & b \\\\ B & c & d \\end{array}
   },
   {
     category: "仮説検定",
-    q: "イェーツの補正（$2\\times2$，期待度数 $\\leq5$ のとき）",
+    q: "イェーツの補正（$2\\times2$，期待度数 $\\leq 5$ のとき）",
     a: `$$\\chi^2 = \\frac{n(|ad-bc|-n/2)^2}{(a+b)(c+d)(a+c)(b+d)}$$
 または一般に:
 $$\\chi^2 = \\sum_{i,j}\\frac{(|O_{ij}-E_{ij}|-0.5)^2}{E_{ij}}$$`
@@ -1320,13 +1305,13 @@ $$\\gamma(1)=\\frac{(\\phi_1-\\theta_1)(1-\\phi_1\\theta_1)\\sigma_\\varepsilon^
   // ── MLE ──
   {
     category: "最尤推定",
-    q: "指数分布（平均 $\\mu$）の MLE：完全標本",
+    q: "指数分布の MLE（完全標本，平均 $\\mu$）",
     a: `尤度関数: $L(\\mu)=\\prod_{i=1}^n\\frac{1}{\\mu}e^{-x_i/\\mu}$<br>
 $$\\hat{\\mu} = \\bar{X} = \\frac{1}{n}\\sum_{i=1}^n X_i$$`
   },
   {
     category: "最尤推定",
-    q: "指数分布（平均 $\\mu$）の MLE：打ち切り標本（時間 $T$ まで観測，$m$ 個故障）",
+    q: "指数分布の MLE（打ち切り標本，時間 $T$，$m$ 個故障）",
     a: `$$\\hat{\\mu} = \\frac{\\sum_{i=1}^m X_{(i)} + (n-m)T}{m}$$
 <span class="param">分子 = 総観測時間（故障 + 打ち切り）</span>`
   },
@@ -1509,7 +1494,11 @@ function updateCard() {
     MathJax.startup.promise.then(() => {
       MathJax.typesetClear([qEl, aEl]);
       return MathJax.typesetPromise([qEl, aEl]);
+    }).then(() => {
+      autoResizeCard();
     }).catch(err => console.warn('MathJax error:', err));
+  } else {
+    autoResizeCard();
   }
 
   updateStatsDisplay();
@@ -2052,6 +2041,38 @@ function reviewSchedule() {
     </div>`);
   }
   return rows.join('');
+}
+
+
+function autoResizeCard() {
+  const wrapper = document.getElementById('cardWrapper');
+  const front   = document.getElementById('cardFront');
+  const back    = document.getElementById('cardBack');
+
+  // 一時的に両面を visible にして実際の高さを測る
+  const prevVis = wrapper.style.visibility;
+  wrapper.style.visibility = 'hidden';
+
+  // front の自然な高さ
+  front.style.position = 'relative';
+  front.style.transform = '';
+  const frontH = front.scrollHeight;
+  front.style.position = '';
+  front.style.transform = '';
+
+  // back の自然な高さ
+  back.style.position = 'relative';
+  back.style.transform = 'none';
+  const backH = back.scrollHeight;
+  back.style.position = '';
+  back.style.transform = '';
+
+  wrapper.style.visibility = prevVis;
+
+  // 大きい方 + 余白
+  const minH = 300;
+  const newH = Math.max(minH, frontH, backH) + 8;
+  wrapper.style.minHeight = newH + 'px';
 }
 
 // Init
