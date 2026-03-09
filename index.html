@@ -950,19 +950,19 @@ $$\\mathrm{Var}(X) = \\frac{pq}{(p+q)^2(p+q+1)}$$`
   },
   {
     category: "連続分布",
-    q: "$t$ 分布 $t(p)$",
+    q: "t 分布 $t(p)$",
     a: `$$f(x) = \\frac{\\Gamma\\!\\left(\\frac{p+1}{2}\\right)}{\\sqrt{p\\pi}\\,\\Gamma\\!\\left(\\frac{p}{2}\\right)}\\left(1+\\frac{x^2}{p}\\right)^{-(p+1)/2}$$
 $$E[X] = 0 \\;(p>1), \\qquad \\mathrm{Var}(X) = \\frac{p}{p-2} \\;(p>2)$$`
   },
   {
     category: "連続分布",
-    q: "$F$ 分布 $F(m,n)$",
+    q: "F 分布 $F(m,n)$",
     a: `$$f(x) = \\frac{\\Gamma\\!\\left(\\frac{m+n}{2}\\right)}{\\Gamma\\!\\left(\\frac{m}{2}\\right)\\Gamma\\!\\left(\\frac{n}{2}\\right)}\\left(\\frac{m}{n}\\right)^{m/2}\\frac{x^{m/2-1}}{\\left(1+\\frac{m}{n}x\\right)^{(m+n)/2}}, \\; x>0$$
 $$E[X] = \\frac{n}{n-2}\\;(n>2), \\quad \\mathrm{Var}(X) = \\frac{2n^2(m+n-2)}{m(n-2)^2(n-4)}\\;(n>4)$$`
   },
   {
     category: "連続分布",
-    q: "$F$ 分布の $m,n$ 交換の公式",
+    q: "F 分布の $m,n$ 交換の公式",
     a: `$$X \\sim F(m,n) \\implies \\frac{1}{X} \\sim F(n,m)$$
 また，
 $$F_{\\alpha}(m,n) = \\frac{1}{F_{1-\\alpha}(n,m)}$$
@@ -1117,7 +1117,7 @@ $r$: 標本相関係数`
   },
   {
     category: "区間推定",
-    q: "母相関係数の推定（Fisherの $z$ 変換）",
+    q: "母相関係数の推定（Fisherの z 変換）",
     a: `Fisherの $z$ 変換: $z = \\tanh^{-1}(r) = \\dfrac{1}{2}\\ln\\dfrac{1+r}{1-r}$<br>
 $$z \\approx N\\!\\left(\\tanh^{-1}(\\rho),\\;\\frac{1}{n-3}\\right)$$
 信頼区間は $z$ の信頼区間を逆変換して得る`
@@ -1216,26 +1216,26 @@ $$\\chi^2 = \\sum_{i,j}\\frac{(|O_{ij}-E_{ij}|-0.5)^2}{E_{ij}}$$`
   // ── 順序統計量 ──
   {
     category: "順序統計量",
-    q: "順序統計量 $X_{(i)}$ の PDF（一般）",
+    q: "順序統計量 X(i) の PDF（一般）",
     a: `$$f_{X_{(i)}}(x) = \\frac{n!}{(i-1)!(n-i)!}[F(x)]^{i-1}[1-F(x)]^{n-i}f(x)$$`
   },
   {
     category: "順序統計量",
-    q: "指数分布 $n$ 標本の最小値 $X_{(1)}$",
+    q: "指数分布 n 標本の最小値 X(1)",
     a: `$X_i\\sim\\mathrm{Exp}(\\lambda)$ i.i.d. のとき<br>
 $$X_{(1)} \\sim \\mathrm{Exp}(n\\lambda)$$
 $$E[X_{(1)}] = \\frac{1}{n\\lambda}$$`
   },
   {
     category: "順序統計量",
-    q: "標準一様分布の $X_{(i)}$",
+    q: "標準一様分布の X(i)",
     a: `$X_i\\sim U(0,1)$ i.i.d. のとき<br>
 $$X_{(i)} \\sim \\mathrm{Beta}(i,\\, n-i+1)$$
 $$E[X_{(i)}] = \\frac{i}{n+1}, \\quad \\mathrm{Var}(X_{(i)}) = \\frac{i(n-i+1)}{(n+1)^2(n+2)}$$`
   },
   {
     category: "順序統計量",
-    q: "標準一様分布の $X_{(i)}-X_{(j)}$（$i>j$）",
+    q: "標準一様分布の X(i) − X(j)（i > j）",
     a: `$$X_{(i)}-X_{(j)} \\sim \\mathrm{Beta}(i-j,\\, n-i+j+1)$$`
   },
 
@@ -1272,7 +1272,7 @@ $$\\gamma(h)=\\phi_1\\gamma(h-1)+\\phi_2\\gamma(h-2) \\quad (h\\geq1)$$`
   },
   {
     category: "回帰・時系列",
-    q: "AR($p$) の定常条件",
+    q: "AR(p) の定常条件",
     a: `特性方程式 $1-\\phi_1 z-\\phi_2 z^2-\\cdots-\\phi_p z^p=0$ の<br>
 すべての根の<b>絶対値が $1$ より大きい</b>，<br>
 すなわち単位円の外側にある。<br>
@@ -1289,7 +1289,7 @@ $$\\gamma(h)=0 \\quad (h\\geq3)$$`
   },
   {
     category: "回帰・時系列",
-    q: "MA($q$) の反転可能条件と識別可能条件",
+    q: "MA(q) の反転可能条件と識別可能条件",
     a: `<b>反転可能:</b> 特性方程式 $1-\\theta_1 z-\\cdots-\\theta_q z^q=0$ のすべての根の絶対値 $>1$<br>
 <b>識別可能:</b> 反転可能条件と同じ（MA($q$) は反転可能 $\\iff$ 識別可能）`
   },
@@ -1311,7 +1311,7 @@ $$\\hat{\\mu} = \\bar{X} = \\frac{1}{n}\\sum_{i=1}^n X_i$$`
   },
   {
     category: "最尤推定",
-    q: "指数分布の MLE（打ち切り標本，時間 $T$，$m$ 個故障）",
+    q: "指数分布の MLE（打ち切り標本，時間 T，m 個故障）",
     a: `$$\\hat{\\mu} = \\frac{\\sum_{i=1}^m X_{(i)} + (n-m)T}{m}$$
 <span class="param">分子 = 総観測時間（故障 + 打ち切り）</span>`
   },
