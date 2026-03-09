@@ -144,7 +144,7 @@ MathJax = {
     width: 100%;
     min-height: 400px;
     transform-style: preserve-3d;
-    transition: transform 0.65s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
   }
   .card-wrapper.flipped { transform: rotateY(180deg); }
@@ -614,6 +614,17 @@ MathJax = {
     }
   }
 
+
+  @media (max-width: 600px) {
+    #statsModal > div {
+      padding: 20px 16px;
+      margin: 0;
+      border-radius: 0;
+      min-height: 100vh;
+    }
+    #statsModal > div h2 { font-size: 1.3rem; }
+  }
+
 </style>
 </head>
 <body>
@@ -639,11 +650,14 @@ MathJax = {
   <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:8px;">
     <div class="mode-row" style="margin:0;">
       <button class="mode-btn active" onclick="setMode('all')" id="modeAll">全カード</button>
+      <button class="mode-btn" onclick="setMode('review')" id="modeReview">📅 復習</button>
       <button class="mode-btn" onclick="setMode('incorrect')" id="modeIncorrect">不正解のみ</button>
       <button class="mode-btn" onclick="setMode('unseen')" id="modeUnseen">未学習のみ</button>
     </div>
     <div style="display:flex;gap:8px;">
       <button class="shuffle-btn" onclick="shuffleCards()">🔀 シャッフル</button>
+      <button class="shuffle-btn" onclick="showStats()">📊 統計</button>
+      <button class="shuffle-btn" onclick="showCardList()">📋 一覧</button>
       <button class="shuffle-btn" onclick="resetStats()">↺ リセット</button>
     </div>
   </div>
@@ -656,8 +670,23 @@ MathJax = {
   </div>
 
   <!-- Card -->
+  <!-- スワイプ操作ガイド（答え表示後のみ） -->
+  <div id="swipeGuide" style="display:none;text-align:center;margin-bottom:10px;font-size:0.72rem;color:#9a8778;letter-spacing:0.06em;">
+    <span style="color:#8b3a2a;">← 左スワイプ = 不正解</span>
+    &nbsp;&nbsp;｜&nbsp;&nbsp;
+    <span style="color:#4a6741;">右スワイプ = 正解 →</span>
+  </div>
+
   <div class="card-area" id="cardArea">
     <div class="card-wrapper" id="cardWrapper" onclick="flipCard()">
+      <!-- スワイプフィードバックオーバーレイ -->
+      <div id="swipeOverlay" style="
+        position:absolute;inset:0;z-index:10;border-radius:4px;
+        display:flex;align-items:center;justify-content:center;
+        font-size:4rem;color:white;font-weight:700;
+        opacity:0;transition:opacity 0.15s;pointer-events:none;
+        text-shadow:0 2px 12px rgba(0,0,0,0.3);
+      "></div>
       <div class="card-face card-front" id="cardFront">
         <div class="card-label"><span id="cardLabelFront">QUESTION</span></div>
         <div class="card-category-badge" id="cardCategoryFront">—</div>
@@ -695,6 +724,51 @@ MathJax = {
     <div class="result-score" id="finalScore">—%</div>
     <p style="color:#7a6a58; margin-bottom:24px;">お疲れ様でした。もう一度挑戦しましょう。</p>
     <button class="btn btn-next" onclick="restartDeck()" style="margin:0 auto;">もう一度 →</button>
+  </div>
+  <!-- Card List Modal -->
+  <div id="listModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:1000; overflow-y:auto; padding:20px; -webkit-overflow-scrolling:touch;">
+    <div style="max-width:680px; margin:0 auto; background:white; border-radius:6px; padding:28px 24px; position:relative;">
+      <button onclick="closeCardList()" style="position:absolute;top:14px;right:16px;background:none;border:none;font-size:1.4rem;cursor:pointer;color:#9a8778;">✕</button>
+      <h2 style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;color:#1e3a5f;margin-bottom:6px;">📋 問題一覧</h2>
+      <p style="font-size:0.75rem;color:#9a8778;margin-bottom:16px;">カードをタップすると内容を確認できます</p>
+
+      <!-- Search & Filter -->
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+        <input id="listSearch" type="text" placeholder="🔍 キーワード検索..." oninput="renderCardList()"
+          style="flex:1;min-width:160px;padding:8px 12px;border:1.5px solid #d4c9b0;border-radius:3px;font-family:'Noto Serif JP',serif;font-size:0.82rem;outline:none;">
+        <select id="listCatFilter" onchange="renderCardList()"
+          style="padding:8px 10px;border:1.5px solid #d4c9b0;border-radius:3px;font-family:'Noto Serif JP',serif;font-size:0.8rem;background:white;outline:none;">
+          <option value="all">すべてのカテゴリ</option>
+        </select>
+        <select id="listStatusFilter" onchange="renderCardList()"
+          style="padding:8px 10px;border:1.5px solid #d4c9b0;border-radius:3px;font-family:'Noto Serif JP',serif;font-size:0.8rem;background:white;outline:none;">
+          <option value="all">すべて</option>
+          <option value="correct">正解済み ✓</option>
+          <option value="incorrect">不正解 ✗</option>
+          <option value="unseen">未学習</option>
+        </select>
+      </div>
+
+      <div style="font-size:0.72rem;color:#9a8778;margin-bottom:12px;font-family:'JetBrains Mono',monospace;" id="listCount"></div>
+      <div id="listContent"></div>
+    </div>
+  </div>
+
+  <!-- Card Detail Modal -->
+  <div id="detailModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:1100; overflow-y:auto; padding:20px; -webkit-overflow-scrolling:touch;">
+    <div style="max-width:600px; margin:0 auto; background:white; border-radius:6px; padding:28px 24px; position:relative;">
+      <button onclick="closeDetail()" style="position:absolute;top:14px;right:16px;background:none;border:none;font-size:1.4rem;cursor:pointer;color:#9a8778;">✕</button>
+      <div id="detailContent"></div>
+    </div>
+  </div>
+
+  <!-- Stats Modal -->
+  <div id="statsModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; overflow-y:auto; padding:20px;">
+    <div style="max-width:600px; margin:0 auto; background:white; border-radius:6px; padding:28px 24px; position:relative;">
+      <button onclick="closeStats()" style="position:absolute;top:14px;right:16px;background:none;border:none;font-size:1.4rem;cursor:pointer;color:#9a8778;">✕</button>
+      <h2 style="font-family:'Cormorant Garamond',serif;font-size:1.6rem;color:#1e3a5f;margin-bottom:20px;">📊 学習統計</h2>
+      <div id="statsContent"></div>
+    </div>
   </div>
 </main>
 
@@ -1263,6 +1337,10 @@ let currentDeck = [...cards];
 let currentIndex = 0;
 let isFlipped = false;
 let stats = JSON.parse(localStorage.getItem('actuarial_stats') || '{}');
+// reviewData: { cardId: { nextReview: ISO date string, interval: days, streak: int } }
+let reviewData = JSON.parse(localStorage.getItem('actuarial_review') || '{}');
+// sessionLog: array of { date, correct, incorrect } per day
+let sessionLog = JSON.parse(localStorage.getItem('actuarial_log') || '[]');
 let currentCategory = 'all';
 let currentMode = 'all';
 
@@ -1290,7 +1368,7 @@ function selectCategory(cat) {
 
 function setMode(mode) {
   currentMode = mode;
-  ['all','incorrect','unseen'].forEach(m => document.getElementById('mode'+m.charAt(0).toUpperCase()+m.slice(1)).classList.remove('active'));
+  ['all','review','incorrect','unseen'].forEach(m => document.getElementById('mode'+m.charAt(0).toUpperCase()+m.slice(1)).classList.remove('active'));
   document.getElementById('mode'+mode.charAt(0).toUpperCase()+mode.slice(1)).classList.add('active');
   rebuildDeck();
 }
@@ -1302,12 +1380,58 @@ function getCardId(card) {
 function saveStats() {
   try {
     localStorage.setItem('actuarial_stats', JSON.stringify(stats));
+    localStorage.setItem('actuarial_review', JSON.stringify(reviewData));
+    localStorage.setItem('actuarial_log', JSON.stringify(sessionLog));
   } catch(e) { console.warn('localStorage unavailable'); }
+}
+
+// ── SM-2風 間隔反復アルゴリズム ──
+function updateReview(cardId, correct) {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const r = reviewData[cardId] || { interval: 1, streak: 0 };
+  if (correct) {
+    r.streak = (r.streak || 0) + 1;
+    if (r.streak === 1)      r.interval = 1;
+    else if (r.streak === 2) r.interval = 3;
+    else                     r.interval = Math.round(r.interval * 2.5);
+  } else {
+    r.streak = 0;
+    r.interval = 1;
+  }
+  const next = new Date(today);
+  next.setDate(next.getDate() + r.interval);
+  r.nextReview = next.toISOString().slice(0,10);
+  reviewData[cardId] = r;
+}
+
+function getDueCards() {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const todayStr = today.toISOString().slice(0,10);
+  return cards.filter(c => {
+    const r = reviewData[getCardId(c)];
+    if (!r) return true; // 未学習は全部対象
+    return r.nextReview <= todayStr;
+  });
+}
+
+function logSession(correct) {
+  const todayStr = new Date().toISOString().slice(0,10);
+  let entry = sessionLog.find(e => e.date === todayStr);
+  if (!entry) { entry = { date: todayStr, correct: 0, incorrect: 0 }; sessionLog.push(entry); }
+  if (correct) entry.correct++; else entry.incorrect++;
+  // keep last 60 days
+  if (sessionLog.length > 60) sessionLog = sessionLog.slice(-60);
 }
 
 function rebuildDeck() {
   let base = currentCategory === 'all' ? [...cards] : cards.filter(c => c.category === currentCategory);
-  if (currentMode === 'incorrect') {
+  if (currentMode === 'review') {
+    const due = getDueCards();
+    const dueIds = new Set(due.map(c => getCardId(c)));
+    base = base.filter(c => dueIds.has(getCardId(c)));
+  } else if (currentMode === 'incorrect') {
     base = base.filter(c => stats[getCardId(c)] === 'incorrect');
   } else if (currentMode === 'unseen') {
     base = base.filter(c => !stats[getCardId(c)]);
@@ -1354,7 +1478,10 @@ function updateCard() {
   // Reset flip
   isFlipped = false;
   wrapper.classList.remove('flipped');
+  wrapper.style.transform = '';
   resultBtns.style.display = 'none';
+  const guide = document.getElementById('swipeGuide');
+  if (guide) guide.style.display = 'none';
 
   const card = currentDeck[currentIndex];
   document.getElementById('cardCategoryFront').textContent = card.category;
@@ -1387,16 +1514,22 @@ function flipCard() {
   isFlipped = !isFlipped;
   const wrapper = document.getElementById('cardWrapper');
   wrapper.classList.toggle('flipped', isFlipped);
+  const guide = document.getElementById('swipeGuide');
   if (isFlipped) {
     document.getElementById('resultBtns').style.display = 'flex';
+    guide.style.display = 'block';
   } else {
     document.getElementById('resultBtns').style.display = 'none';
+    guide.style.display = 'none';
   }
 }
 
 function markResult(correct) {
   const card = currentDeck[currentIndex];
-  stats[getCardId(card)] = correct ? 'correct' : 'incorrect';
+  const cid = getCardId(card);
+  stats[cid] = correct ? 'correct' : 'incorrect';
+  updateReview(cid, correct);
+  logSession(correct);
   saveStats();
   updateStatsDisplay();
   nextCard();
@@ -1448,50 +1581,422 @@ function updateStatsDisplay() {
 }
 
 
+
+function updateReviewBadge() {
+  const due = getDueCards().length;
+  const btn = document.getElementById('modeReview');
+  if (btn) btn.textContent = '📅 復習' + (due > 0 ? ' (' + due + ')' : '');
+}
+
 // =====================================================
-// TOUCH / SWIPE SUPPORT
+// TOUCH / SWIPE SUPPORT  (Anki style)
+//   表面タップ          → カードをめくる
+//   答え表示後 右スワイプ → ✓ 正解
+//   答え表示後 左スワイプ → ✗ 不正解
+//   表面で 左/右スワイプ  → 前/次のカード
 // =====================================================
 (function() {
   let touchStartX = 0, touchStartY = 0;
-  let touchEndX = 0, touchEndY = 0;
-  const MIN_SWIPE = 60;    // px
-  const MAX_VERT  = 80;    // ignore if too vertical
+  let touchEndX   = 0, touchEndY   = 0;
+  let startTime = 0;
+  const MIN_SWIPE  = 50;   // px
+  const MAX_VERT   = 80;   // ignore if too vertical
+  const MAX_TAP_MS = 250;  // ms for tap detection
 
   const cardArea = document.getElementById('cardArea');
 
   cardArea.addEventListener('touchstart', e => {
-    touchStartX = e.changedTouches[0].screenX;
-    touchStartY = e.changedTouches[0].screenY;
+    touchStartX = e.changedTouches[0].clientX;
+    touchStartY = e.changedTouches[0].clientY;
+    startTime   = Date.now();
   }, { passive: true });
 
   cardArea.addEventListener('touchend', e => {
-    touchEndX = e.changedTouches[0].screenX;
-    touchEndY = e.changedTouches[0].screenY;
-    handleSwipe();
+    touchEndX = e.changedTouches[0].clientX;
+    touchEndY = e.changedTouches[0].clientY;
+    handleGesture();
   }, { passive: true });
 
-  function handleSwipe() {
-    const dx = touchEndX - touchStartX;
-    const dy = Math.abs(touchEndY - touchStartY);
-    if (dy > MAX_VERT) return; // mostly vertical scroll, ignore
+  function handleGesture() {
+    const dx   = touchEndX - touchStartX;
+    const dy   = touchEndY - touchStartY;
+    const adx  = Math.abs(dx);
+    const ady  = Math.abs(dy);
+    const dt   = Date.now() - startTime;
+    const isSwipe = adx > MIN_SWIPE && ady < MAX_VERT;
 
-    if (Math.abs(dx) < MIN_SWIPE) {
-      // Short tap = flip
-      return; // flip is handled by onclick
-    }
-    if (dx < -MIN_SWIPE) {
-      // Swipe left = next
-      nextCard();
-    } else if (dx > MIN_SWIPE) {
-      // Swipe right = prev
-      prevCard();
+    if (!isSwipe) return; // tap は onclick に任せる
+
+    if (isFlipped) {
+      // 答え表示中 → 左右で正解/不正解
+      if (dx > MIN_SWIPE) {
+        // 右スワイプ → 正解
+        triggerSwipeFeedback('correct');
+        setTimeout(() => markResult(true), 300);
+      } else if (dx < -MIN_SWIPE) {
+        // 左スワイプ → 不正解
+        triggerSwipeFeedback('incorrect');
+        setTimeout(() => markResult(false), 300);
+      }
+    } else {
+      // 問題表示中 → 左右で前後移動
+      if (dx < -MIN_SWIPE) nextCard();
+      else if (dx > MIN_SWIPE) prevCard();
     }
   }
+
+  // スワイプ時の視覚フィードバック
+  function triggerSwipeFeedback(type) {
+    const wrapper = document.getElementById('cardWrapper');
+    const overlay = document.getElementById('swipeOverlay');
+    const isCorrect = type === 'correct';
+    overlay.textContent = isCorrect ? '✓' : '✗';
+    overlay.style.background = isCorrect
+      ? 'rgba(74,103,65,0.85)' : 'rgba(139,58,42,0.85)';
+    overlay.style.opacity = '1';
+    wrapper.style.transform = isCorrect
+      ? 'rotateY(180deg) translateX(60px)' : 'rotateY(180deg) translateX(-60px)';
+    setTimeout(() => {
+      overlay.style.opacity = '0';
+      wrapper.style.transform = '';
+    }, 280);
+  }
 })();
+
+
+
+// =====================================================
+// CARD LIST MODAL
+// =====================================================
+function showCardList() {
+  const modal = document.getElementById('listModal');
+  modal.style.display = 'block';
+  // populate category filter
+  const sel = document.getElementById('listCatFilter');
+  const cats = ['all', ...new Set(cards.map(c => c.category))];
+  sel.innerHTML = cats.map(c => `<option value="${c}">${c === 'all' ? 'すべてのカテゴリ' : c}</option>`).join('');
+  renderCardList();
+}
+function closeCardList() {
+  document.getElementById('listModal').style.display = 'none';
+}
+document.getElementById('listModal').addEventListener('click', function(e) {
+  if (e.target === this) closeCardList();
+});
+
+function renderCardList() {
+  const q = (document.getElementById('listSearch').value || '').trim().toLowerCase();
+  const catF = document.getElementById('listCatFilter').value;
+  const stF  = document.getElementById('listStatusFilter').value;
+
+  let filtered = cards.filter((c, i) => {
+    if (catF !== 'all' && c.category !== catF) return false;
+    const st = stats[getCardId(c)];
+    if (stF === 'correct'   && st !== 'correct')   return false;
+    if (stF === 'incorrect' && st !== 'incorrect')  return false;
+    if (stF === 'unseen'    && st)                  return false;
+    if (q) {
+      const text = (c.q + ' ' + c.a + ' ' + c.category).toLowerCase();
+      if (!text.includes(q)) return false;
+    }
+    return true;
+  });
+
+  document.getElementById('listCount').textContent = `${filtered.length} 件 / 全 ${cards.length} 件`;
+
+  // Group by category
+  const groups = {};
+  filtered.forEach(c => {
+    if (!groups[c.category]) groups[c.category] = [];
+    groups[c.category].push(c);
+  });
+
+  const statusIcon = (c) => {
+    const st = stats[getCardId(c)];
+    const r  = reviewData[getCardId(c)];
+    const today = new Date().toISOString().slice(0,10);
+    const due = r && r.nextReview <= today;
+    if (st === 'correct')   return due ? '<span style="color:#b8860b;font-size:0.8rem;">📅</span>' : '<span style="color:#4a6741;font-size:0.85rem;">✓</span>';
+    if (st === 'incorrect') return '<span style="color:#8b3a2a;font-size:0.85rem;">✗</span>';
+    return '<span style="color:#c0b4a0;font-size:0.75rem;">○</span>';
+  };
+
+  const statusBg = (c) => {
+    const st = stats[getCardId(c)];
+    if (st === 'correct')   return '#f2f7f0';
+    if (st === 'incorrect') return '#fdf3f0';
+    return '#fafafa';
+  };
+
+  let html = '';
+  Object.entries(groups).forEach(([cat, items]) => {
+    const ok = items.filter(c => stats[getCardId(c)] === 'correct').length;
+    html += `
+      <div style="margin-bottom:20px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;
+          padding:6px 12px;background:#1e3a5f;color:#f5f0e8;border-radius:3px 3px 0 0;
+          font-size:0.78rem;font-family:'JetBrains Mono',monospace;letter-spacing:0.06em;">
+          <span>${cat}</span>
+          <span style="color:#d4a017;">${ok}/${items.length}</span>
+        </div>
+        <div style="border:1.5px solid #d4c9b0;border-top:none;border-radius:0 0 3px 3px;overflow:hidden;">
+          ${items.map((c, idx) => `
+            <div onclick="showDetail(${cards.indexOf(c)})"
+              style="display:flex;align-items:center;gap:10px;padding:10px 14px;
+              background:${statusBg(c)};border-bottom:1px solid #ede7d9;cursor:pointer;
+              transition:background 0.15s;"
+              onmouseover="this.style.background='#f0eadf'"
+              onmouseout="this.style.background='${statusBg(c)}'">
+              <div style="width:22px;text-align:center;flex-shrink:0;">${statusIcon(c)}</div>
+              <div style="flex:1;font-size:0.82rem;color:#2a1f18;line-height:1.4;">${c.q.split('\n').join('<br>')}</div>
+              <div style="color:#b0a090;font-size:0.85rem;flex-shrink:0;">›</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>`;
+  });
+
+  if (html === '') html = '<div style="text-align:center;padding:32px;color:#9a8778;">該当するカードがありません</div>';
+  document.getElementById('listContent').innerHTML = html;
+
+  // Typeset any inline math in the list
+  if (window.MathJax && MathJax.typesetPromise) {
+    MathJax.typesetPromise([document.getElementById('listContent')]).catch(()=>{});
+  }
+}
+
+function showDetail(cardIndex) {
+  const card = cards[cardIndex];
+  const cid  = getCardId(card);
+  const st   = stats[cid];
+  const r    = reviewData[cid];
+  const today = new Date().toISOString().slice(0,10);
+
+  const stLabel = st === 'correct'
+    ? '<span style="color:#4a6741;font-weight:600;">✓ 正解済み</span>'
+    : st === 'incorrect'
+    ? '<span style="color:#8b3a2a;font-weight:600;">✗ 不正解</span>'
+    : '<span style="color:#9a8778;">○ 未学習</span>';
+
+  const reviewInfo = r
+    ? `次回復習: <b>${r.nextReview}</b> &nbsp;|&nbsp; 連続正解: <b>${r.streak}</b>回 &nbsp;|&nbsp; 間隔: <b>${r.interval}</b>日`
+    : '未学習（復習スケジュール未設定）';
+
+  const el = document.getElementById('detailContent');
+  el.innerHTML = `
+    <div style="font-size:0.65rem;font-family:'JetBrains Mono',monospace;color:#9a8778;
+      letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;">${card.category}</div>
+    <div style="font-size:0.8rem;margin-bottom:16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+      ${stLabel}
+      <span style="color:#9a8778;font-size:0.72rem;">${reviewInfo}</span>
+    </div>
+
+    <div style="border-top:2px solid #1e3a5f;padding-top:16px;margin-bottom:16px;">
+      <div style="font-size:0.65rem;color:#9a8778;letter-spacing:0.1em;margin-bottom:8px;font-family:'JetBrains Mono',monospace;">QUESTION</div>
+      <div style="font-size:1.15rem;font-family:'Cormorant Garamond',serif;font-weight:600;
+      <div style="font-size:1.15rem;font-family:'Cormorant Garamond',serif;font-weight:600;color:#1a1410;line-height:1.6;">${card.q.split('\n').join('<br>')}</div>
+
+    <div style="background:#f5f0e8;border:1.5px solid #d4a017;border-radius:3px;padding:18px 20px;">
+      <div style="font-size:0.65rem;color:#8b3a2a;font-weight:600;letter-spacing:0.1em;
+        margin-bottom:10px;font-family:'JetBrains Mono',monospace;">ANSWER</div>
+      <div style="font-size:0.95rem;line-height:2.0;color:#2a1f18;">${card.a}</div>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:20px;">
+      <button onclick="markFromList(${cardIndex}, false)" style="flex:1;padding:10px;background:#8b3a2a;color:white;border:none;border-radius:3px;font-family:'Noto Serif JP',serif;font-size:0.82rem;cursor:pointer;">✗ 不正解にする</button>
+      <button onclick="markFromList(${cardIndex}, true)"  style="flex:1;padding:10px;background:#4a6741;color:white;border:none;border-radius:3px;font-family:'Noto Serif JP',serif;font-size:0.82rem;cursor:pointer;">✓ 正解にする</button>
+    </div>
+  `;
+
+  document.getElementById('detailModal').style.display = 'block';
+
+  if (window.MathJax && MathJax.typesetPromise) {
+    MathJax.typesetPromise([el]).catch(()=>{});
+  }
+}
+
+function closeDetail() {
+  document.getElementById('detailModal').style.display = 'none';
+}
+document.getElementById('detailModal').addEventListener('click', function(e) {
+  if (e.target === this) closeDetail();
+});
+
+function markFromList(cardIndex, correct) {
+  const card = cards[cardIndex];
+  const cid  = getCardId(card);
+  stats[cid] = correct ? 'correct' : 'incorrect';
+  updateReview(cid, correct);
+  logSession(correct);
+  saveStats();
+  updateStatsDisplay();
+  updateReviewBadge();
+  closeDetail();
+  renderCardList(); // refresh list
+}
+
+// =====================================================
+// STATS MODAL
+// =====================================================
+function showStats() {
+  const modal = document.getElementById('statsModal');
+  modal.style.display = 'block';
+  renderStats();
+}
+function closeStats() {
+  document.getElementById('statsModal').style.display = 'none';
+}
+// Close on backdrop click
+document.getElementById('statsModal').addEventListener('click', function(e) {
+  if (e.target === this) closeStats();
+});
+
+function renderStats() {
+  const total = cards.length;
+  const correct = cards.filter(c => stats[getCardId(c)] === 'correct').length;
+  const incorrect = cards.filter(c => stats[getCardId(c)] === 'incorrect').length;
+  const unseen = total - correct - incorrect;
+  const pct = Math.round(correct / total * 100);
+
+  // Due today
+  const due = getDueCards().length;
+
+  // Category breakdown
+  const cats = [...new Set(cards.map(c => c.category))];
+  const catRows = cats.map(cat => {
+    const cc = cards.filter(c => c.category === cat);
+    const ok = cc.filter(c => stats[getCardId(c)] === 'correct').length;
+    const ng = cc.filter(c => stats[getCardId(c)] === 'incorrect').length;
+    const p = Math.round(ok / cc.length * 100);
+    return { cat, total: cc.length, ok, ng, unseen: cc.length - ok - ng, pct: p };
+  });
+
+  // Session history (last 14 days)
+  const today = new Date();
+  const days = Array.from({length:14}, (_,i) => {
+    const d = new Date(today);
+    d.setDate(d.getDate() - (13 - i));
+    return d.toISOString().slice(0,10);
+  });
+  const logMap = {};
+  sessionLog.forEach(e => logMap[e.date] = e);
+
+  // Streak
+  let streak = 0;
+  for (let i = days.length - 1; i >= 0; i--) {
+    const e = logMap[days[i]];
+    if (e && (e.correct + e.incorrect) > 0) streak++;
+    else break;
+  }
+
+  const el = document.getElementById('statsContent');
+  el.innerHTML = `
+    <!-- Overall -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px;">
+      ${statBox('総カード数', total, '#1e3a5f')}
+      ${statBox('正解済み', correct + ' (' + pct + '%)', '#4a6741')}
+      ${statBox('今日の復習', due + '枚', '#b8860b')}
+    </div>
+
+    <!-- Progress bar overall -->
+    <div style="margin-bottom:24px;">
+      <div style="font-size:0.78rem;color:#9a8778;margin-bottom:8px;font-family:JetBrains Mono,monospace;letter-spacing:0.08em;">全体の習熟度</div>
+      <div style="height:14px;background:#f0ebe0;border-radius:7px;overflow:hidden;display:flex;">
+        <div style="width:${pct}%;background:#4a6741;transition:width 0.6s;"></div>
+        <div style="width:${Math.round(incorrect/total*100)}%;background:#8b3a2a;"></div>
+      </div>
+      <div style="display:flex;gap:16px;margin-top:6px;font-size:0.7rem;color:#9a8778;">
+        <span>🟢 正解 ${correct}</span><span>🔴 不正解 ${incorrect}</span><span>⚪ 未学習 ${unseen}</span>
+      </div>
+    </div>
+
+    <!-- Streak -->
+    <div style="margin-bottom:24px;padding:14px 18px;background:#faf7f2;border:1.5px solid #d4c9b0;border-radius:4px;display:flex;align-items:center;gap:16px;">
+      <div style="font-size:2rem;">🔥</div>
+      <div>
+        <div style="font-size:1.4rem;font-weight:700;color:#b8860b;font-family:'Cormorant Garamond',serif;">${streak}日連続</div>
+        <div style="font-size:0.72rem;color:#9a8778;">学習ストリーク</div>
+      </div>
+    </div>
+
+    <!-- 14-day chart -->
+    <div style="margin-bottom:24px;">
+      <div style="font-size:0.78rem;color:#9a8778;margin-bottom:10px;font-family:JetBrains Mono,monospace;letter-spacing:0.08em;">過去14日の学習</div>
+      <div style="display:flex;align-items:flex-end;gap:4px;height:70px;">
+        ${days.map(d => {
+          const e = logMap[d] || {correct:0,incorrect:0};
+          const tot = e.correct + e.incorrect;
+          const maxH = 60;
+          const h = tot > 0 ? Math.max(4, Math.round(Math.min(tot, 30) / 30 * maxH)) : 3;
+          const isToday = d === today.toISOString().slice(0,10);
+          const label = d.slice(5); // MM-DD
+          return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;">
+            <div style="width:100%;height:${h}px;background:${tot>0?(isToday?'#b8860b':'#4a6741'):'#e8e0d0'};border-radius:2px 2px 0 0;"></div>
+            <div style="font-size:0.5rem;color:${isToday?'#b8860b':'#b0a090'};transform:rotate(-45deg);white-space:nowrap;">${label}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <!-- Category breakdown -->
+    <div>
+      <div style="font-size:0.78rem;color:#9a8778;margin-bottom:10px;font-family:JetBrains Mono,monospace;letter-spacing:0.08em;">カテゴリ別習熟度</div>
+      ${catRows.map(r => `
+        <div style="margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <span style="font-size:0.8rem;color:#2a1f18;">${r.cat}</span>
+            <span style="font-size:0.72rem;font-family:JetBrains Mono,monospace;color:${r.pct>=80?'#4a6741':r.pct>=50?'#b8860b':'#8b3a2a'};">${r.ok}/${r.total} (${r.pct}%)</span>
+          </div>
+          <div style="height:8px;background:#f0ebe0;border-radius:4px;overflow:hidden;display:flex;">
+            <div style="width:${r.pct}%;background:#4a6741;"></div>
+            <div style="width:${Math.round(r.ng/r.total*100)}%;background:#8b3a2a;"></div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+
+    <!-- Review schedule -->
+    <div style="margin-top:24px;padding:14px 18px;background:#f0f4f8;border:1.5px solid #b8cce0;border-radius:4px;">
+      <div style="font-size:0.78rem;color:#1e3a5f;font-weight:600;margin-bottom:8px;">📅 復習スケジュール（今後7日）</div>
+      ${reviewSchedule()}
+    </div>
+  `;
+}
+
+function statBox(label, value, color) {
+  return `<div style="text-align:center;padding:14px;background:#faf7f2;border:1.5px solid #d4c9b0;border-radius:4px;">
+    <div style="font-size:1.5rem;font-weight:700;color:${color};font-family:'Cormorant Garamond',serif;">${value}</div>
+    <div style="font-size:0.7rem;color:#9a8778;margin-top:4px;">${label}</div>
+  </div>`;
+}
+
+function reviewSchedule() {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const rows = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() + i);
+    const ds = d.toISOString().slice(0,10);
+    const count = cards.filter(c => {
+      const r = reviewData[getCardId(c)];
+      if (!r) return i === 0; // unseen → today
+      return r.nextReview === ds;
+    }).length;
+    const label = i === 0 ? '今日' : i === 1 ? '明日' : `+${i}日`;
+    rows.push(`<div style="display:flex;justify-content:space-between;font-size:0.75rem;padding:3px 0;border-bottom:1px solid #d0dce8;">
+      <span style="color:#1e3a5f;">${label} (${ds})</span>
+      <span style="font-weight:600;color:${count>0?'#b8860b':'#9a8778'};">${count}枚</span>
+    </div>`);
+  }
+  return rows.join('');
+}
 
 // Init
 buildTabs();
 updateCard();
+// Show review badge on load
+updateReviewBadge();
 </script>
 </body>
 </html>
