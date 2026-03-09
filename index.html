@@ -1613,21 +1613,21 @@ function updateReviewBadge() {
   function applyDrag(dx) {
     const rotate = dx * 0.04;
     wrapper.style.transition = 'none';
-    // 裏面表示中(rotateY180)でも、translateXはそのまま右向きに動く
     if (isFlipped) {
-      wrapper.style.transform = `rotateY(180deg) translateX(${dx}px) rotate(${rotate}deg)`;
+      // rotateY(180deg)座標系ではX軸が反転するので符号を逆にする
+      wrapper.style.transform = `rotateY(180deg) translateX(${-dx}px) rotate(${rotate}deg)`;
     } else {
       wrapper.style.transform = `translateX(${dx}px) rotate(${rotate}deg)`;
     }
     // オーバーレイ
     const ratio = Math.min(Math.abs(dx) / DECIDE, 1);
     if (dx > 15) {
-      overlay.textContent = '✗';
-      overlay.style.background = `rgba(139,58,42,${ratio * 0.88})`;
-      overlay.style.opacity = ratio;
-    } else if (dx < -15) {
       overlay.textContent = '✓';
       overlay.style.background = `rgba(74,103,65,${ratio * 0.88})`;
+      overlay.style.opacity = ratio;
+    } else if (dx < -15) {
+      overlay.textContent = '✗';
+      overlay.style.background = `rgba(139,58,42,${ratio * 0.88})`;
       overlay.style.opacity = ratio;
     } else {
       overlay.style.opacity = 0;
@@ -1645,8 +1645,11 @@ function updateReviewBadge() {
   // 確定: 指定方向に飛ばす
   function flyOut(direction, onDone) {
     animating = true;
-    const tx = direction === 'right' ? window.innerWidth : -window.innerWidth;
     const rot = direction === 'right' ? 20 : -20;
+    // rotateY(180deg)座標系ではX軸が反転するため符号を逆にする
+    const tx = isFlipped
+      ? (direction === 'right' ? -window.innerWidth : window.innerWidth)
+      : (direction === 'right' ?  window.innerWidth : -window.innerWidth);
     const base = isFlipped ? 'rotateY(180deg) ' : '';
     wrapper.style.transition = 'transform 0.32s ease-in, opacity 0.32s ease-in';
     wrapper.style.transform = `${base}translateX(${tx}px) rotate(${rot}deg)`;
@@ -1699,9 +1702,9 @@ function updateReviewBadge() {
     if (dragEnabled) {
       // 答え表示中のドラッグ終了
       if (dx > DECIDE && dy < 90) {
-        flyOut('right', () => markResult(false));
+        flyOut('right', () => markResult(true));
       } else if (dx < -DECIDE && dy < 90) {
-        flyOut('left', () => markResult(true));
+        flyOut('left', () => markResult(false));
       } else {
         snapBack();
       }
