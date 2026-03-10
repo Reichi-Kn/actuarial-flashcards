@@ -27,7 +27,6 @@ MathJax = {
 };
 </script>
 <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root {
     --ink: #1a1410;
@@ -644,7 +643,75 @@ MathJax = {
     max-width: 100%;
     height: auto;
   }
-</style>
+    #pdfPrintArea {
+      display: block !important;
+      font-family: 'Noto Serif JP', serif;
+      color: #2a1f18;
+    }
+    @page { size: A4; margin: 14mm; }
+
+    .pdf-cover {
+      height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center; page-break-after: always;
+    }
+    .pdf-cover-title { font-size: 26pt; font-weight: 700; color: #1e3a5f; margin-bottom: 10pt; }
+    .pdf-cover-sub   { font-size: 16pt; font-weight: 700; color: #b8860b; margin-bottom: 20pt; }
+    .pdf-cover-line  { width: 100pt; height: 1.5pt; background: #b8860b; margin: 0 auto 20pt; }
+    .pdf-cover-info  { font-size: 10pt; color: #666; margin-bottom: 10pt; }
+    .pdf-cover-cats  { font-size: 8pt; color: #888; line-height: 2; max-width: 300pt; }
+
+    .pdf-cat-header {
+      background: #1e3a5f; color: #fff;
+      padding: 5pt 10pt; border-radius: 2pt;
+      font-size: 9.5pt; font-weight: 700;
+      margin: 12pt 0 5pt;
+      page-break-inside: avoid;
+    }
+    .pdf-card { page-break-inside: avoid; margin-bottom: 4pt; }
+    .pdf-q {
+      background: #e8eef5;
+      padding: 4pt 8pt;
+      display: flex; align-items: baseline; gap: 6pt;
+    }
+    .pdf-num   { font-size: 6pt; color: #888; flex-shrink: 0; }
+    .pdf-qtext { font-size: 9pt; font-weight: 700; line-height: 1.6; }
+    .pdf-a {
+      border-left: 2.5pt solid #8b3a2a;
+      background: #fff;
+      padding: 4pt 8pt 5pt 10pt;
+      font-size: 8pt; line-height: 1.9;
+      color: #1e3a5f;
+      font-family: 'Noto Sans JP', sans-serif;
+    }
+    .pdf-a b { font-weight: 700; color: #2a1f18; }
+    .pdf-a .param { font-size: 7pt; color: #4a6741; }
+
+    mjx-container { display: inline !important; vertical-align: middle; }
+    mjx-container[display="true"] { display: block !important; margin: 4pt 0 !important; }
+  }
+
+    #printView { display: block !important; background: #fff; }
+    #printBody { margin: 0 !important; padding: 0 !important;
+                 box-shadow: none !important; max-width: none !important; }
+    .cover { page-break-after: always; }
+    .pcard, .pcat { page-break-inside: avoid; }
+    @page { size: A4; margin: 13mm; }
+  }
+
+  
+  @media print {
+    header, .controls, .mode-controls, .stats-row, .card-nav,
+    #pdfModal, .swipe-guide, #printView > div:first-child,
+    #printView > p:last-child { display: none !important; }
+    #printView { position: static !important; }
+    #printBody { box-shadow: none !important; margin: 0 !important; padding: 0 !important; }
+    @page { size: A4; margin: 13mm; }
+    .pcard, [style*="page-break-inside:avoid"] { page-break-inside: avoid; }
+  }
+
+  </style>
 </head>
 <body>
 
@@ -1748,250 +1815,66 @@ function updateReviewBadge() {
 
 
 // =====================================================
-// PDF GENERATION  (jsPDF native text — fast & print-quality)
-// アプリ起動時にバックグラウンドで生成、ボタンは即表示
+// PDF GENERATION
 // =====================================================
-let _pdfCache = null;       // 生成済みPDFを保持
-let _pdfBuilding = false;   // 生成中フラグ
 
-// ── 起動時にバックグラウンドで生成 ──
-window.addEventListener('load', () => {
-  setTimeout(() => _buildPDF(), 1200); // MathJax安定後
-});
-
-async function _buildPDF() {
-  if (_pdfBuilding) return;
-  _pdfBuilding = true;
-  try {
-    _pdfCache = await _createPDF();
-  } catch(e) {
-    console.warn('PDF pre-build failed:', e);
+function generatePDF() {
+  var url = 'https://reichi-kn.github.io/actuarial-flashcards/print.html';
+  var prog = document.getElementById('pdfProgressArea');
+  var cont = document.getElementById('pdfContent');
+  if (prog) prog.style.display = 'none';
+  if (cont) {
+    cont.style.display = 'block';
+    cont.innerHTML = ''
+      + '<div style="padding:24px 20px;">'
+      +   '<p style="font-size:.85rem;color:#444;margin-bottom:16px;line-height:1.7;">'
+      +     '下のURLをコピーして <b>Safari</b> で開いてください。<br>'
+      +     '<span style="font-size:.75rem;color:#888;">共有 → 「PDFを作成」または「印刷」でPDF保存できます。</span>'
+      +   '</p>'
+      +   '<div style="display:flex;gap:8px;align-items:stretch;">'
+      +     '<input id="prURL" type="text" readonly value="' + url + '"'
+      +       ' style="flex:1;padding:11px 10px;border:2px solid #b8860b;border-radius:5px;'
+      +       'font-size:.7rem;color:#1e3a5f;background:#fffdf6;font-family:monospace;'
+      +       '-webkit-user-select:all;user-select:all;" />'
+      +     '<button onclick="copyPrURL()"'
+      +       ' style="background:#b8860b;color:#fff;border:none;border-radius:5px;'
+      +       'padding:11px 16px;font-size:.88rem;font-weight:700;'
+      +       'cursor:pointer;font-family:inherit;flex-shrink:0;" id="cpBtn">'
+      +       'コピー'
+      +     '</button>'
+      +   '</div>'
+      +   '<p id="cpDone" style="font-size:.78rem;color:#4a6741;margin-top:10px;display:none;">'
+      +     '✓ コピーしました！Safariに貼り付けて開いてください。'
+      +   '</p>'
+      + '</div>';
   }
-  _pdfBuilding = false;
-}
-
-// ── ボタン押下 ──
-async function generatePDF() {
-  const btn = document.getElementById('pdfBtn');
-  btn.disabled = true;
-  btn.textContent = '⏳...';
-
-  // モーダルを開いてプログレス表示
   document.getElementById('pdfModal').style.display = 'block';
-  document.getElementById('pdfProgressArea').style.display = 'block';
-  document.getElementById('pdfContent').style.display = 'none';
-  document.getElementById('pdfDownloadBtn').style.display = 'none';
-  setProgress(0, 'PDF を生成中...', '');
+}
 
-  try {
-    _pdfCache = await _createPDF();
-    const url = _pdfCache.output('bloburl');
-    document.getElementById('pdfProgressArea').style.display = 'none';
-    document.getElementById('pdfContent').style.display = 'block';
-    document.getElementById('pdfContent').innerHTML = `
-      <div style="padding:28px 24px;text-align:center;">
-        <div style="font-size:3rem;margin-bottom:12px;">✅</div>
-        <div style="font-size:1rem;font-weight:600;color:#1e3a5f;margin-bottom:6px;">PDF の生成が完了しました</div>
-        <div style="font-size:0.82rem;color:#888;margin-bottom:24px;">全 ${totalCards} 問 ／ ${catOrder.length} カテゴリ</div>
-        <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
-          <button onclick="window.open('${url}','_blank')" style="background:#1e3a5f;color:#fff;border:none;border-radius:5px;padding:12px 24px;font-size:0.92rem;cursor:pointer;font-family:inherit;">🔗 新しいタブで開く</button>
-          <button onclick="downloadPDF()" style="background:#b8860b;color:#fff;border:none;border-radius:5px;padding:12px 24px;font-size:0.92rem;cursor:pointer;font-family:inherit;">⬇ ダウンロード</button>
-        </div>
-      </div>`;
-  } catch(e) {
-    setProgress(0, '❌ エラー: ' + e.message, '');
+function copyPrURL() {
+  var inp = document.getElementById('prURL');
+  inp.focus();
+  inp.select();
+  inp.setSelectionRange(0, 9999);
+  var ok = false;
+  try { ok = document.execCommand('copy'); } catch(e) {}
+  if (!ok && navigator.clipboard) {
+    navigator.clipboard.writeText(inp.value).catch(function(){});
+    ok = true;
   }
-
-  btn.textContent = '📄 PDF';
-  btn.disabled = false;
+  var btn  = document.getElementById('cpBtn');
+  var done = document.getElementById('cpDone');
+  btn.textContent = '✓ 済み';
+  btn.style.background = '#4a6741';
+  done.style.display = 'block';
+  setTimeout(function() {
+    btn.textContent = 'コピー';
+    btn.style.background = '#b8860b';
+  }, 3000);
 }
 
-function setProgress(pct, msg, sub) {
-  document.getElementById('pdfProgressBar').style.width = pct + '%';
-  document.getElementById('pdfStatusMsg').textContent = msg;
-  document.getElementById('pdfProgressNum').textContent = sub;
-}
-
-function downloadPDF() {
-  if (!_pdfCache) return;
-  const a = document.getElementById('pdfDownloadAnchor');
-  if (a) { a.click(); return; }
-  // フォールバック
-  _pdfCache.save('actuarial-formula-book.pdf');
-}
-
-function closePDFModal() {
-  document.getElementById('pdfModal').style.display = 'none';
-}
-
-// ── PDF本体生成（jsPDF native + プログレス） ──
-async function _createPDF() {
-  const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-
-  const PW = 210, PH = 297;
-  const ML = 15, MR = 15, MT = 15, MB = 15;
-  const CW = PW - ML - MR;
-  let y = MT;
-
-  const DEEP_BLUE = [30, 58, 95];
-  const GOLD      = [184, 134, 11];
-  const RUST      = [139, 58, 42];
-  const LIGHT_BLUE= [232, 238, 245];
-  const INK       = [42, 31, 24];
-  const GRAY      = [136, 136, 136];
-  const WHITE     = [255, 255, 255];
-
-  // カテゴリ別グループ化
-  const catMap = {}, catOrder = [];
-  cards.forEach((c, i) => {
-    if (!catMap[c.category]) { catMap[c.category] = []; catOrder.push(c.category); }
-    catMap[c.category].push({ ...c, num: i + 1 });
-  });
-
-  const totalCards = cards.length;
-  let doneCards = 0;
-
-  function newPage() { pdf.addPage(); y = MT; }
-  function checkY(needed) { if (y + needed > PH - MB) newPage(); }
-
-  // ── 表紙 ──
-  setProgress(2, '表紙を作成中...', '');
-  pdf.setFillColor(...DEEP_BLUE);
-  pdf.rect(0, 0, PW, 72, 'F');
-  pdf.setFillColor(...GOLD);
-  pdf.rect(0, 72, PW, 1.5, 'F');
-  pdf.setTextColor(255, 255, 255);
-  pdf.setFont('helvetica', 'bold');
-  pdf.setFontSize(22);
-  pdf.text('Actuarial Mathematics', PW/2, 28, { align: 'center' });
-  pdf.setFontSize(13);
-  pdf.setTextColor(230, 195, 100);
-  pdf.text('Formula Reference Book', PW/2, 41, { align: 'center' });
-  pdf.setTextColor(200, 210, 225);
-  pdf.setFont('helvetica', 'normal');
-  pdf.setFontSize(9);
-  pdf.text('アクチュアリー数学 公式確認集', PW/2, 54, { align: 'center' });
-  pdf.setTextColor(...INK);
-  pdf.setFontSize(10);
-  pdf.text(`${totalCards} problems  /  ${catOrder.length} categories`, PW/2, 92, { align: 'center' });
-  pdf.setFontSize(7.5);
-  pdf.setTextColor(...GRAY);
-  pdf.text(catOrder.join('  ·  '), PW/2, 106, { align: 'center', maxWidth: CW });
-
-  // ── カテゴリ別 ──
-  newPage();
-  let globalNum = 1;
-
-  for (let ci = 0; ci < catOrder.length; ci++) {
-    const cat = catOrder[ci];
-    const catCards = catMap[cat];
-
-    setProgress(
-      Math.round(3 + (doneCards / totalCards) * 95),
-      `[${ci+1}/${catOrder.length}] ${cat} を処理中...`,
-      `${doneCards} / ${totalCards} 問完了`
-    );
-    await new Promise(r => setTimeout(r, 0)); // UIを更新させる
-
-    // カテゴリヘッダー
-    checkY(14);
-    pdf.setFillColor(...DEEP_BLUE);
-    pdf.roundedRect(ML, y, CW, 9, 1.5, 1.5, 'F');
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFont('helvetica', 'bold');
-    pdf.setFontSize(9.5);
-    pdf.text(cat, ML + 5, y + 6.2);
-    y += 12;
-
-    for (const c of catCards) {
-      const qText = latexToUnicode(c.q).replace(/<[^>]+>/g,'').trim();
-      const aText = latexToUnicode(c.a).replace(/<[^>]+>/g,'').replace(/\s+/g,' ').trim();
-
-      pdf.setFontSize(9);
-      const qLines = pdf.splitTextToSize(qText, CW - 16);
-      const qH = Math.max(8.5, qLines.length * 5 + 5);
-
-      pdf.setFontSize(8.5);
-      const aLines = pdf.splitTextToSize(aText, CW - 8);
-      const aH = Math.max(9, aLines.length * 4.8 + 6);
-
-      checkY(qH + aH + 3);
-
-      // 問題行
-      pdf.setFillColor(...LIGHT_BLUE);
-      pdf.rect(ML, y, CW, qH, 'F');
-      pdf.setTextColor(...GRAY);
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(6);
-      pdf.text(`No.${globalNum}`, ML + 2, y + 4);
-      pdf.setTextColor(...INK);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(9);
-      qLines.forEach((line, i) => pdf.text(line, ML + 13, y + 5 + i * 5));
-      y += qH;
-
-      // 答え行
-      pdf.setFillColor(...WHITE);
-      pdf.rect(ML, y, CW, aH, 'F');
-      pdf.setFillColor(...RUST);
-      pdf.rect(ML, y, 2, aH, 'F');
-      pdf.setTextColor(...DEEP_BLUE);
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(8.5);
-      aLines.forEach((line, i) => pdf.text(line, ML + 4.5, y + 5 + i * 4.8));
-      y += aH + 2.5;
-
-      globalNum++;
-      doneCards++;
-    }
-    y += 3;
-  }
-
-  setProgress(100, '✅ 完成！', `全 ${totalCards} 問`);
-  await new Promise(r => setTimeout(r, 300));
-  return pdf;
-}
-
-function latexToUnicode(s) {
-  const MAP = [
-    [/\$\$([\s\S]*?)\$\$/g, (_, e) => ' ' + convExpr(e) + ' '],
-    [/\$([\s\S]*?)\$/g,     (_, e) => convExpr(e)],
-    [/<br\s*\/?>/g,         ' '],
-    [/<span[^>]*>([\s\S]*?)<\/span>/g, '$1'],
-    [/<[^>]+>/g,            ''],
-  ];
-  MAP.forEach(([pat, rep]) => { s = s.replace(pat, rep); });
-  return s;
-}
-
-const LMAP = {
-  '\\\\mathrm{Bin}':'Bin','\\\\mathrm{Po}':'Po','\\\\mathrm{NB}':'NB',
-  '\\\\mathrm{Beta}':'Beta','\\\\mathrm{Var}':'Var','\\\\mathrm{Cov}':'Cov',
-  '\\\\bar{X}':'X̄','\\\\hat{\\\\mu}':'μ̂','\\\\hat{\\\\beta}':'β̂',
-  '\\\\hat{\\\\alpha}':'α̂','\\\\hat{\\\\lambda}':'λ̂','\\\\hat{p}':'p̂',
-  '\\\\varepsilon':'ε','\\\\alpha':'α','\\\\beta':'β','\\\\gamma':'γ',
-  '\\\\lambda':'λ','\\\\mu':'μ','\\\\sigma':'σ','\\\\theta':'θ',
-  '\\\\phi_0':'φ₀','\\\\phi_1':'φ₁','\\\\phi_2':'φ₂',
-  '\\\\phi':'φ','\\\\rho':'ρ','\\\\Gamma':'Γ','\\\\chi':'χ',
-  '\\\\Sigma':'Σ','\\\\infty':'∞','\\\\times':'×','\\\\leq':'≤',
-  '\\\\geq':'≥','\\\\sim':'~','\\\\sum':'Σ','\\\\int':'∫',
-  '\\\\sqrt':'√','\\\\dots':'…','\\\\pm':'±','\\\\cdot':'·',
-  '\\\\left(':'(','\\\\right)':')','\\\\left[':'[','\\\\right]':']',
-  '\\\\qquad':'  ','\\\\quad':' ','\\\\!':'','\\\\,':'',
-  '\\\\to':'→','\\\\partial':'∂',
-};
-
-function convExpr(expr) {
-  expr = expr.trim();
-  Object.entries(LMAP).forEach(([k,v]) => {
-    expr = expr.split(k).join(v);
-  });
-  expr = expr.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '($1)/($2)');
-  expr = expr.replace(/\{([^{}]+)\}/g, '$1');
-  expr = expr.replace(/\\[a-zA-Z]+/g, '');
-  return expr;
-}
+function closePDFModal() { document.getElementById('pdfModal').style.display = 'none'; }
+function setProgress() {}
 
 
 
@@ -2359,16 +2242,18 @@ buildTabs();
 updateCard();
 // Show review badge on load
 updateReviewBadge();
+
+
+
 </script>
 
   <!-- ── PDF Modal ── -->
   <div id="pdfModal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.72);overflow-y:auto;">
-    <div style="max-width:800px;margin:24px auto 40px;background:#fff;border-radius:6px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.45);">
+    <div style="max-width:860px;margin:16px auto 40px;background:#fff;border-radius:6px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.45);">
       <div style="background:#1e3a5f;color:#fff;padding:13px 18px;display:flex;align-items:center;justify-content:space-between;">
         <span style="font-size:0.95rem;font-weight:600;">📄 公式確認集 PDF</span>
         <div style="display:flex;gap:10px;align-items:center;">
-          <button id="pdfDownloadBtn" onclick="downloadPDF()" style="display:none;background:#b8860b;color:#fff;border:none;border-radius:4px;padding:6px 14px;font-size:0.82rem;cursor:pointer;font-family:inherit;">⬇ ダウンロード</button>
-          <button onclick="closePDFModal()" style="background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer;line-height:1;padding:0 4px;">×</button>
+<button onclick="closePDFModal()" style="background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer;line-height:1;padding:0 4px;">×</button>
         </div>
       </div>
       <!-- プログレスエリア -->
@@ -2383,6 +2268,6 @@ updateReviewBadge();
       <div id="pdfContent" style="display:none;"></div>
     </div>
   </div>
-
+<div id="printView" style="display:none;"></div>
 </body>
-</html>
+<
