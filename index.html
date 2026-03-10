@@ -27,6 +27,8 @@ MathJax = {
 };
 </script>
 <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
   :root {
     --ink: #1a1410;
@@ -676,6 +678,7 @@ MathJax = {
       <button class="shuffle-btn" onclick="shuffleCards()">🔀 シャッフル</button>
       <button class="shuffle-btn" onclick="showStats()">📊 統計</button>
       <button class="shuffle-btn" onclick="showCardList()">📋 一覧</button>
+      <button class="shuffle-btn" onclick="generatePDF()" id="pdfBtn">📄 PDF</button>
       <button class="shuffle-btn" onclick="resetStats()">↺ リセット</button>
     </div>
   </div>
@@ -1742,6 +1745,171 @@ function updateReviewBadge() {
   }, { passive: true });
 })();
 
+
+
+
+// =====================================================
+// PDF GENERATION
+// =====================================================
+let pdfInstance = null;
+
+async function generatePDF() {
+  const btn = document.getElementById('pdfBtn');
+  btn.textContent = '⏳ 生成中...';
+  btn.disabled = true;
+
+  // モーダルを先に開いてローディング表示
+  document.getElementById('pdfModal').style.display = 'block';
+  document.getElementById('pdfLoading').style.display = 'block';
+  document.getElementById('pdfContent').innerHTML = `
+    <div id="pdfLoading" style="padding:40px;color:#888;text-align:center;">
+      <div style="font-size:2rem;margin-bottom:10px;">⏳</div>
+      <div>数式をレンダリング中...</div>
+    </div>`;
+
+  try {
+    // PDFレンダリング用HTMLを構築
+    const html = buildPDFHTML();
+    const area = document.getElementById('pdfRenderArea');
+    area.innerHTML = html;
+
+    // MathJaxでレンダリング
+    if (window.MathJax && MathJax.typesetPromise) {
+      await MathJax.typesetPromise([area]);
+    }
+
+    // 少し待ってからキャプチャ
+    await new Promise(r => setTimeout(r, 300));
+
+    // html2canvas でページごとにキャプチャ
+    const pages = area.querySelectorAll('.pdf-page');
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+    pdfInstance = pdf;
+
+    for (let i = 0; i < pages.length; i++) {
+      const canvas = await html2canvas(pages[i], {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      });
+      if (i > 0) pdf.addPage();
+      const imgData = canvas.toDataURL('image/jpeg', 0.92);
+      pdf.addImage(imgData, 'JPEG', 0, 0, 210, 297);
+    }
+
+    // プレビュー表示
+    const pdfUrl = pdf.output('bloburl');
+    document.getElementById('pdfContent').innerHTML = `
+      <iframe src="${pdfUrl}" style="width:100%;height:80vh;border:none;display:block;"></iframe>`;
+
+    area.innerHTML = '';
+  } catch(e) {
+    document.getElementById('pdfContent').innerHTML =
+      `<div style="padding:30px;color:#8b3a2a;">エラー: ${e.message}</div>`;
+    console.error(e);
+  }
+
+  btn.textContent = '📄 PDF';
+  btn.disabled = false;
+}
+
+function downloadPDF() {
+  if (pdfInstance) {
+    pdfInstance.save('actuarial-formula-book.pdf');
+  }
+}
+
+function closePDFModal() {
+  document.getElementById('pdfModal').style.display = 'none';
+}
+
+function buildPDFHTML() {
+  // カテゴリ順にグループ化
+  const catMap = {};
+  const catOrder = [];
+  cards.forEach((c, i) => {
+    if (!catMap[c.category]) { catMap[c.category] = []; catOrder.push(c.category); }
+    catMap[c.category].push({ ...c, idx: i });
+  });
+
+  const COLORS = {
+    deepBlue: '#1e3a5f', gold: '#b8860b', rust: '#8b3a2a',
+    lightBlue: '#e8eef5', ink: '#2a1f18', gray: '#888888',
+  };
+
+  let globalNum = 1;
+  let pages = [];
+  let currentPageContent = '';
+  let isFirstPage = true;
+
+  // 表紙
+  pages.push(`
+    <div class="pdf-page" style="width:794px;min-height:1123px;background:#fff;padding:80px 60px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Noto Serif JP',serif;">
+      <div style="font-size:32px;font-weight:700;color:${COLORS.deepBlue};text-align:center;margin-bottom:12px;">アクチュアリー数学</div>
+      <div style="font-size:20px;font-weight:700;color:${COLORS.gold};text-align:center;margin-bottom:30px;">公式確認集</div>
+      <div style="width:60%;height:2px;background:${COLORS.gold};margin:0 auto 30px;"></div>
+      <div style="font-size:13px;color:${COLORS.gray};text-align:center;margin-bottom:16px;">全 ${cards.length} 問 ／ ${catOrder.length} カテゴリ</div>
+      <div style="font-size:11px;color:${COLORS.gray};text-align:center;line-height:2;">${catOrder.join(' · ')}</div>
+    </div>`);
+
+  // カテゴリ別コンテンツをページに分割
+  // 1ページ = A4縦 (794x1123px) padding 40px → 実質 714x1043
+  const PAGE_H = 1003; // 余白引いた高さ
+  let currentH = 0;
+  let pageItems = [];
+
+  function flushPage() {
+    if (pageItems.length === 0) return;
+    pages.push(`
+      <div class="pdf-page" style="width:794px;min-height:1123px;background:#fff;padding:40px 50px;box-sizing:border-box;font-family:'Noto Serif JP',sans-serif;">
+        ${pageItems.join('')}
+      </div>`);
+    pageItems = [];
+    currentH = 0;
+  }
+
+  catOrder.forEach(cat => {
+    // カテゴリヘッダー (約36px)
+    const catH = 38;
+    if (currentH + catH > PAGE_H) flushPage();
+    pageItems.push(`
+      <div style="background:${COLORS.deepBlue};color:#fff;padding:8px 16px;border-radius:3px;margin-bottom:8px;font-size:13px;font-weight:700;">
+        ${cat}
+      </div>`);
+    currentH += catH;
+
+    catMap[cat].forEach(c => {
+      // 問題行 ≈ 30px、答え行は内容次第（目安50px）
+      const estH = 90;
+      if (currentH + estH > PAGE_H) flushPage();
+
+      const cleanA = c.a
+        .replace(/<span class="param">(.*?)<\/span>/gs, '<span style="font-size:10px;color:#4a6741;background:#eef4ec;padding:1px 6px;border-radius:3px;">$1</span>')
+        .replace(/<span[^>]*>/g,'<span>');
+
+      pageItems.push(`
+        <div style="margin-bottom:7px;">
+          <div style="background:${COLORS.lightBlue};padding:5px 10px;border-radius:2px 2px 0 0;display:flex;align-items:baseline;gap:8px;">
+            <span style="font-size:9px;color:${COLORS.gray};flex-shrink:0;">No.${globalNum}</span>
+            <span style="font-size:11.5px;font-weight:700;color:${COLORS.ink};">${c.q}</span>
+          </div>
+          <div style="border-left:3px solid ${COLORS.rust};background:#fff;padding:6px 10px 8px 10px;font-size:10.5px;line-height:1.85;color:${COLORS.deepBlue};">
+            ${cleanA}
+          </div>
+        </div>`);
+
+      currentH += estH;
+      globalNum++;
+    });
+
+    currentH += 8; // カテゴリ間スペース
+  });
+
+  flushPage();
+  return pages.join('\n');
+}
 
 
 // =====================================================
