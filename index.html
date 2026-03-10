@@ -711,6 +711,25 @@ MathJax = {
     .pcard, [style*="page-break-inside:avoid"] { page-break-inside: avoid; }
   }
 
+  
+  @media print {
+    body > *:not(#pdfModal) { display: none !important; }
+    #pdfModal {
+      display: block !important;
+      position: static !important;
+      background: none !important;
+      overflow: visible !important;
+    }
+    #pdfModal > div {
+      box-shadow: none !important;
+      margin: 0 !important;
+      border-radius: 0 !important;
+    }
+    #pdfModal > div > div:first-child { display: none !important; }
+    #pdfLoading { display: none !important; }
+    @page { size: A4; margin: 13mm; }
+  }
+
   </style>
 </head>
 <body>
@@ -1815,65 +1834,77 @@ function updateReviewBadge() {
 
 
 // =====================================================
-// PDF GENERATION
+// PDF GENERATION — モーダル内に公式集を直接表示
 // =====================================================
 
 function generatePDF() {
-  var url = 'https://reichi-kn.github.io/actuarial-flashcards/print.html';
-  var prog = document.getElementById('pdfProgressArea');
-  var cont = document.getElementById('pdfContent');
-  if (prog) prog.style.display = 'none';
-  if (cont) {
-    cont.style.display = 'block';
-    cont.innerHTML = ''
-      + '<div style="padding:24px 20px;">'
-      +   '<p style="font-size:.85rem;color:#444;margin-bottom:16px;line-height:1.7;">'
-      +     '下のURLをコピーして <b>Safari</b> で開いてください。<br>'
-      +     '<span style="font-size:.75rem;color:#888;">共有 → 「PDFを作成」または「印刷」でPDF保存できます。</span>'
-      +   '</p>'
-      +   '<div style="display:flex;gap:8px;align-items:stretch;">'
-      +     '<input id="prURL" type="text" readonly value="' + url + '"'
-      +       ' style="flex:1;padding:11px 10px;border:2px solid #b8860b;border-radius:5px;'
-      +       'font-size:.7rem;color:#1e3a5f;background:#fffdf6;font-family:monospace;'
-      +       '-webkit-user-select:all;user-select:all;" />'
-      +     '<button onclick="copyPrURL()"'
-      +       ' style="background:#b8860b;color:#fff;border:none;border-radius:5px;'
-      +       'padding:11px 16px;font-size:.88rem;font-weight:700;'
-      +       'cursor:pointer;font-family:inherit;flex-shrink:0;" id="cpBtn">'
-      +       'コピー'
-      +     '</button>'
-      +   '</div>'
-      +   '<p id="cpDone" style="font-size:.78rem;color:#4a6741;margin-top:10px;display:none;">'
-      +     '✓ コピーしました！Safariに貼り付けて開いてください。'
-      +   '</p>'
-      + '</div>';
-  }
-  document.getElementById('pdfModal').style.display = 'block';
-}
+  var modal   = document.getElementById('pdfModal');
+  var loading = document.getElementById('pdfLoading');
+  var book    = document.getElementById('pdfBookContent');
+  var printBtn= document.getElementById('pdfPrintBtn');
 
-function copyPrURL() {
-  var inp = document.getElementById('prURL');
-  inp.focus();
-  inp.select();
-  inp.setSelectionRange(0, 9999);
-  var ok = false;
-  try { ok = document.execCommand('copy'); } catch(e) {}
-  if (!ok && navigator.clipboard) {
-    navigator.clipboard.writeText(inp.value).catch(function(){});
-    ok = true;
-  }
-  var btn  = document.getElementById('cpBtn');
-  var done = document.getElementById('cpDone');
-  btn.textContent = '✓ 済み';
-  btn.style.background = '#4a6741';
-  done.style.display = 'block';
+  // 初期化
+  loading.style.display = 'block';
+  book.style.display    = 'none';
+  printBtn.style.display= 'none';
+  modal.style.display   = 'block';
+  modal.scrollTop = 0;
+
+  // 少し遅延してからレンダリング（モーダルが開いてから）
   setTimeout(function() {
-    btn.textContent = 'コピー';
-    btn.style.background = '#b8860b';
-  }, 3000);
+    book.innerHTML = buildFormulaBook();
+    loading.style.display = 'none';
+    book.style.display    = 'block';
+    printBtn.style.display= 'inline-block';
+
+    // MathJax レンダリング
+    if (window.MathJax && MathJax.typesetPromise && MathJax.startup && MathJax.startup.promise) {
+      MathJax.startup.promise.then(function() {
+        MathJax.typesetPromise([book]);
+      });
+    }
+  }, 50);
 }
 
-function closePDFModal() { document.getElementById('pdfModal').style.display = 'none'; }
+function buildFormulaBook() {
+  var catMap = {}, catOrder = [];
+  cards.forEach(function(c) {
+    if (!catMap[c.category]) { catMap[c.category] = []; catOrder.push(c.category); }
+    catMap[c.category].push(c);
+  });
+
+  var num = 1, html = '';
+
+  // 表紙風ヘッダー
+  html += '<div style="text-align:center;padding:32px 20px 24px;border-bottom:2px solid #e8eef5;margin-bottom:16px;">'
+    + '<div style="font-size:1.6rem;font-weight:700;color:#1e3a5f;margin-bottom:6px;">アクチュアリー数学</div>'
+    + '<div style="font-size:1rem;font-weight:700;color:#b8860b;margin-bottom:14px;">公式確認集</div>'
+    + '<div style="width:60px;height:2px;background:#b8860b;margin:0 auto 14px;"></div>'
+    + '<div style="font-size:.8rem;color:#888;">全 ' + cards.length + ' 問 ／ ' + catOrder.length + ' カテゴリ</div>'
+    + '</div>';
+
+  catOrder.forEach(function(cat) {
+    html += '<div style="background:#1e3a5f;color:#fff;padding:6px 12px;border-radius:3px;'
+      + 'font-size:.8rem;font-weight:700;margin:14px 0 5px;">' + cat + '</div>';
+    catMap[cat].forEach(function(card) {
+      html += '<div style="margin-bottom:5px;">'
+        + '<div style="background:#e8eef5;padding:5px 8px;display:flex;align-items:baseline;gap:7px;">'
+        + '<span style="font-size:.58rem;color:#aaa;flex-shrink:0;">No.' + num + '</span>'
+        + '<span style="font-size:.78rem;font-weight:700;color:#2a1f18;line-height:1.65;">' + card.q + '</span>'
+        + '</div>'
+        + '<div style="border-left:3px solid #8b3a2a;background:#fff;padding:5px 8px 6px 10px;'
+        + 'font-size:.72rem;line-height:1.9;color:#1e3a5f;">' + card.a + '</div>'
+        + '</div>';
+      num++;
+    });
+  });
+
+  return html;
+}
+
+function closePDFModal() {
+  document.getElementById('pdfModal').style.display = 'none';
+}
 function setProgress() {}
 
 
@@ -2249,25 +2280,20 @@ updateReviewBadge();
 
   <!-- ── PDF Modal ── -->
   <div id="pdfModal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.72);overflow-y:auto;">
-    <div style="max-width:860px;margin:16px auto 40px;background:#fff;border-radius:6px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.45);">
-      <div style="background:#1e3a5f;color:#fff;padding:13px 18px;display:flex;align-items:center;justify-content:space-between;">
-        <span style="font-size:0.95rem;font-weight:600;">📄 公式確認集 PDF</span>
-        <div style="display:flex;gap:10px;align-items:center;">
-<button onclick="closePDFModal()" style="background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer;line-height:1;padding:0 4px;">×</button>
+    <div style="max-width:860px;margin:12px auto 40px;background:#fff;border-radius:6px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.45);">
+      <!-- ヘッダー -->
+      <div style="background:#1e3a5f;color:#fff;padding:11px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;">
+        <span style="font-size:.92rem;font-weight:600;">📄 公式確認集</span>
+        <div style="display:flex;gap:8px;">
+          <button id="pdfPrintBtn" onclick="window.print()" style="display:none;background:#b8860b;color:#fff;border:none;border-radius:4px;padding:6px 14px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit;">🖨 印刷 / PDF保存</button>
+          <button onclick="closePDFModal()" style="background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer;line-height:1;padding:0 4px;">×</button>
         </div>
       </div>
-      <!-- プログレスエリア -->
-      <div id="pdfProgressArea" style="padding:32px 28px 28px;">
-        <div style="font-size:0.88rem;color:#444;margin-bottom:14px;text-align:center;" id="pdfStatusMsg">準備中...</div>
-        <div style="background:#e0e0e0;border-radius:99px;height:10px;overflow:hidden;">
-          <div id="pdfProgressBar" style="height:100%;width:0%;background:linear-gradient(90deg,#1e3a5f,#b8860b);border-radius:99px;transition:width 0.25s ease;"></div>
-        </div>
-        <div style="font-size:0.78rem;color:#999;text-align:right;margin-top:6px;" id="pdfProgressNum">0 / 0</div>
-      </div>
-      <!-- PDFプレビュー（生成完了後） -->
-      <div id="pdfContent" style="display:none;"></div>
+      <!-- ローディング -->
+      <div id="pdfLoading" style="padding:40px;text-align:center;font-size:.88rem;color:#888;">公式集を生成中...</div>
+      <!-- 公式集本文 -->
+      <div id="pdfBookContent" style="display:none;padding:16px 20px;"></div>
     </div>
   </div>
-<div id="printView" style="display:none;"></div>
 </body>
 <
