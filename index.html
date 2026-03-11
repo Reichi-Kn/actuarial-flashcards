@@ -701,31 +701,11 @@ MathJax = {
   }
 
   
-  @media print {
-    header, .controls, .mode-controls, .stats-row, .card-nav,
-    #pdfModal, .swipe-guide, #printView > div:first-child,
-    #printView > p:last-child { display: none !important; }
     #printView { position: static !important; }
     #printBody { box-shadow: none !important; margin: 0 !important; padding: 0 !important; }
     @page { size: A4; margin: 13mm; }
     .pcard, [style*="page-break-inside:avoid"] { page-break-inside: avoid; }
   }
-
-  
-  @media print {
-    body > *:not(#pdfModal) { display: none !important; }
-    #pdfModal {
-      display: block !important;
-      position: static !important;
-      background: none !important;
-      overflow: visible !important;
-    }
-    #pdfModal > div {
-      box-shadow: none !important;
-      margin: 0 !important;
-      border-radius: 0 !important;
-    }
-    #pdfModal > div > div:first-child { display: none !important; }
     #pdfLoading { display: none !important; }
     @page { size: A4; margin: 13mm; }
   }
@@ -763,7 +743,6 @@ MathJax = {
       <button class="shuffle-btn" onclick="shuffleCards()">🔀 シャッフル</button>
       <button class="shuffle-btn" onclick="showStats()">📊 統計</button>
       <button class="shuffle-btn" onclick="showCardList()">📋 一覧</button>
-      <button class="shuffle-btn" onclick="generatePDF()" id="pdfBtn">📄 PDF</button>
       <button class="shuffle-btn" onclick="resetStats()">↺ リセット</button>
     </div>
   </div>
@@ -882,9 +861,40 @@ MathJax = {
 // =====================================================
 // FLASHCARD DATA
 // =====================================================
+// ============================================================
+// 📚 カードデータ
+// ============================================================
+//
+// ▼ カードの追加方法
+// 下の配列に以下の形式でオブジェクトを追加するだけでOKです。
+//
+//   {
+//     category: "カテゴリ名",   // 既存カテゴリ名 or 新しい名前
+//     q: "問題文",              // LaTeX使用可: $...$ または $$...$$
+//     a: `答え`,               // バッククォートで囲む（改行・HTML・LaTeX使用可）
+//   },
+//
+// ▼ LaTeX の書き方
+//   インライン数式: $\mu$, $\sigma^2$
+//   ブロック数式:   $$E[X] = \mu$$
+//
+// ▼ 答えで使えるHTML
+//   <b>太字</b>
+//   <span class="param">補足メモ（緑色の小文字）</span>
+//   <br> 改行
+//
+// ▼ カテゴリ一覧（既存）
+//   基本公式 / 離散分布 / 連続分布 / 多変数・変換 / 統計的推定
+//   区間推定 / 仮説検定 / 順序統計量 / 回帰・時系列 / 最尤推定
+//
+// ============================================================
+
 const cards = [
 
-  // ── 基本公式 ──
+  // ╔══════════════════════════════════════╗
+  // ║  基本公式                                  ║
+  // ╚══════════════════════════════════════╝
+  // ↓ ここに「基本公式」のカードを追加できます
   {
     category: "基本公式",
     q: "ベイズの定理",
@@ -947,26 +957,29 @@ $$J = \\begin{vmatrix} \\partial x/\\partial u & \\partial x/\\partial v \\\\ \\
     a: `$$e^x = \\sum_{n=0}^{\\infty} \\frac{x^n}{n!} = 1 + x + \\frac{x^2}{2!} + \\frac{x^3}{3!} + \\cdots$$`
   },
 
-  // ── 離散分布 ──
+  // ╔══════════════════════════════════════╗
+  // ║  離散分布                                  ║
+  // ╚══════════════════════════════════════╝
+  // ↓ ここに「離散分布」のカードを追加できます
   {
     category: "離散分布",
     q: "離散一様分布 $DU\\{1,2,\\dots,n\\}$",
     a: `$$P(X=k) = \\frac{1}{n}, \\quad k=1,2,\\dots,n$$
 $$E[X] = \\frac{n+1}{2}$$
-$$\\mathrm{Var}(X) = \\frac{n^2-1}{12}$$`
+$$V[X] = \\frac{n^2-1}{12}$$`
   },
   {
     category: "離散分布",
     q: "二項分布 $\\mathrm{Bin}(n,p)$",
     a: `$$P(X=k) = \\binom{n}{k}p^k(1-p)^{n-k}, \\quad k=0,1,\\dots,n$$
 $$E[X] = np$$
-$$\\mathrm{Var}(X) = np(1-p)$$`
+$$V[X] = np(1-p)$$`
   },
   {
     category: "離散分布",
     q: "ポアソン分布 $\\mathrm{Po}(\\lambda)$",
     a: `$$P(X=k) = \\frac{e^{-\\lambda}\\lambda^k}{k!}, \\quad k=0,1,2,\\dots$$
-$$E[X] = \\lambda, \\qquad \\mathrm{Var}(X) = \\lambda$$`
+$$E[X] = \\lambda, \\qquad V[X] = \\lambda$$`
   },
   {
     category: "離散分布",
@@ -983,7 +996,7 @@ $$E[X(X-1)] = \\lambda^2$$
     a: `<b>意味：</b>成功確率 $p$ のベルヌーイ試行を繰り返し，<b>初めて失敗するまで</b>の成功回数<br>
 $$P(X=k) = p^k(1-p), \\quad k=0,1,2,\\dots$$
 $$E[X] = \\frac{p}{1-p}$$
-$$\\mathrm{Var}(X) = \\frac{p}{(1-p)^2}$$`
+$$V[X] = \\frac{p}{(1-p)^2}$$`
   },
   {
     category: "離散分布",
@@ -991,7 +1004,7 @@ $$\\mathrm{Var}(X) = \\frac{p}{(1-p)^2}$$`
     a: `<b>意味：</b>成功確率 $p$ のベルヌーイ試行を繰り返し，<b>初めて成功するまで</b>の試行回数<br>
 $$P(X=k) = (1-p)^{k-1}p, \\quad k=1,2,\\dots$$
 $$E[X] = \\frac{1}{p}$$
-$$\\mathrm{Var}(X) = \\frac{1-p}{p^2}$$`
+$$V[X] = \\frac{1-p}{p^2}$$`
   },
   {
     category: "離散分布",
@@ -999,7 +1012,7 @@ $$\\mathrm{Var}(X) = \\frac{1-p}{p^2}$$`
     a: `<b>意味：</b>成功確率 $p$ で $\\alpha$ 回失敗するまでの成功回数<br>
 $$P(X=k) = \\binom{k+\\alpha-1}{k}p^k(1-p)^\\alpha, \\quad k=0,1,2,\\dots$$
 $$E[X] = \\frac{\\alpha p}{1-p}$$
-$$\\mathrm{Var}(X) = \\frac{\\alpha p}{(1-p)^2}$$`
+$$V[X] = \\frac{\\alpha p}{(1-p)^2}$$`
   },
   {
     category: "離散分布",
@@ -1007,28 +1020,31 @@ $$\\mathrm{Var}(X) = \\frac{\\alpha p}{(1-p)^2}$$`
     a: `<b>意味：</b>$N$ 個中 $N_0$ 個の当たりから $n$ 個を非復元抽出したときの当たり数<br>
 $$P(X=k) = \\frac{\\binom{N_0}{k}\\binom{N-N_0}{n-k}}{\\binom{N}{n}}$$
 $$E[X] = \\frac{nN_0}{N}$$
-$$\\mathrm{Var}(X) = \\frac{nN_0(N-N_0)(N-n)}{N^2(N-1)}$$`
+$$V[X] = \\frac{nN_0(N-N_0)(N-n)}{N^2(N-1)}$$`
   },
 
-  // ── 連続分布 ──
+  // ╔══════════════════════════════════════╗
+  // ║  連続分布                                  ║
+  // ╚══════════════════════════════════════╝
+  // ↓ ここに「連続分布」のカードを追加できます
   {
     category: "連続分布",
     q: "連続一様分布 $U(a,b)$",
     a: `$$f(x) = \\frac{1}{b-a}, \\quad a \\leq x \\leq b$$
 $$E[X] = \\frac{a+b}{2}$$
-$$\\mathrm{Var}(X) = \\frac{(b-a)^2}{12}$$`
+$$V[X] = \\frac{(b-a)^2}{12}$$`
   },
   {
     category: "連続分布",
     q: "正規分布 $N(\\mu,\\sigma^2)$",
     a: `$$f(x) = \\frac{1}{\\sqrt{2\\pi\\sigma^2}}\\exp\\!\\left(-\\frac{(x-\\mu)^2}{2\\sigma^2}\\right)$$
-$$E[X] = \\mu, \\qquad \\mathrm{Var}(X) = \\sigma^2$$`
+$$E[X] = \\mu, \\qquad V[X] = \\sigma^2$$`
   },
   {
     category: "連続分布",
     q: "ガンマ分布 $\\Gamma(\\alpha,\\beta)$",
     a: `$$f(x) = \\frac{\\beta^\\alpha}{\\Gamma(\\alpha)}x^{\\alpha-1}e^{-\\beta x}, \\quad x>0$$
-$$E[X] = \\frac{\\alpha}{\\beta}, \\qquad \\mathrm{Var}(X) = \\frac{\\alpha}{\\beta^2}$$`
+$$E[X] = \\frac{\\alpha}{\\beta}, \\qquad V[X] = \\frac{\\alpha}{\\beta^2}$$`
   },
   {
     category: "連続分布",
@@ -1048,33 +1064,33 @@ $$\\kappa_r = \\frac{(r-1)!\\,\\alpha}{\\beta^r}$$
     category: "連続分布",
     q: "指数分布 $\\Gamma(1,\\lambda)$",
     a: `$$f(x) = \\lambda e^{-\\lambda x}, \\quad x \\geq 0$$
-$$E[X] = \\frac{1}{\\lambda}, \\qquad \\mathrm{Var}(X) = \\frac{1}{\\lambda^2}$$
+$$E[X] = \\frac{1}{\\lambda}, \\qquad V[X] = \\frac{1}{\\lambda^2}$$
 <span class="param">無記憶性: $P(X>s+t\\mid X>s)=P(X>t)$</span>`
   },
   {
     category: "連続分布",
     q: "カイ二乗分布 $\\chi^2(n) = \\Gamma\\!\\left(\\tfrac{n}{2},\\tfrac{1}{2}\\right)$",
     a: `$$f(x) = \\frac{1}{2^{n/2}\\Gamma(n/2)}x^{n/2-1}e^{-x/2}, \\quad x>0$$
-$$E[X] = n, \\qquad \\mathrm{Var}(X) = 2n$$`
+$$E[X] = n, \\qquad V[X] = 2n$$`
   },
   {
     category: "連続分布",
     q: "ベータ分布 $\\mathrm{Beta}(p,q)$",
     a: `$$f(x) = \\frac{x^{p-1}(1-x)^{q-1}}{B(p,q)}, \\quad 0<x<1$$
 $$E[X] = \\frac{p}{p+q}$$
-$$\\mathrm{Var}(X) = \\frac{pq}{(p+q)^2(p+q+1)}$$`
+$$V[X] = \\frac{pq}{(p+q)^2(p+q+1)}$$`
   },
   {
     category: "連続分布",
     q: "$t$ 分布 $t(p)$",
     a: `$$f(x) = \\frac{\\Gamma\\!\\left(\\frac{p+1}{2}\\right)}{\\sqrt{p\\pi}\\,\\Gamma\\!\\left(\\frac{p}{2}\\right)}\\left(1+\\frac{x^2}{p}\\right)^{-(p+1)/2}$$
-$$E[X] = 0 \\;(p>1), \\qquad \\mathrm{Var}(X) = \\frac{p}{p-2} \\;(p>2)$$`
+$$E[X] = 0 \\;(p>1), \\qquad V[X] = \\frac{p}{p-2} \\;(p>2)$$`
   },
   {
     category: "連続分布",
     q: "$F$ 分布 $F(m,n)$",
     a: `$$f(x) = \\frac{\\Gamma\\!\\left(\\frac{m+n}{2}\\right)}{\\Gamma\\!\\left(\\frac{m}{2}\\right)\\Gamma\\!\\left(\\frac{n}{2}\\right)}\\left(\\frac{m}{n}\\right)^{m/2}\\frac{x^{m/2-1}}{\\left(1+\\frac{m}{n}x\\right)^{(m+n)/2}}, \\; x>0$$
-$$E[X] = \\frac{n}{n-2}\\;(n>2), \\quad \\mathrm{Var}(X) = \\frac{2n^2(m+n-2)}{m(n-2)^2(n-4)}\\;(n>4)$$`
+$$E[X] = \\frac{n}{n-2}\\;(n>2), \\quad V[X] = \\frac{2n^2(m+n-2)}{m(n-2)^2(n-4)}\\;(n>4)$$`
   },
   {
     category: "連続分布",
@@ -1085,7 +1101,10 @@ $$F_{\\alpha}(m,n) = \\frac{1}{F_{1-\\alpha}(n,m)}$$
 <span class="param">上側 α 点の対称性として利用</span>`
   },
 
-  // ── 多変数・変換 ──
+  // ╔══════════════════════════════════════╗
+  // ║  多変数・変換                                ║
+  // ╚══════════════════════════════════════╝
+  // ↓ ここに「多変数・変換」のカードを追加できます
   {
     category: "多変数・変換",
     q: "和・差・積・商の密度関数（$X,Y$ 独立）",
@@ -1116,12 +1135,15 @@ $$\\mathrm{Cov}(X_A,X_B) = -Np_Ap_B$$
 $$Q = \\frac{(x-\\mu_1)^2}{\\sigma_1^2}-\\frac{2\\rho(x-\\mu_1)(y-\\mu_2)}{\\sigma_1\\sigma_2}+\\frac{(y-\\mu_2)^2}{\\sigma_2^2}$$`
   },
 
-  // ── 統計的推定 ──
+  // ╔══════════════════════════════════════╗
+  // ║  統計的推定                                 ║
+  // ╚══════════════════════════════════════╝
+  // ↓ ここに「統計的推定」のカードを追加できます
   {
     category: "統計的推定",
     q: "クラメール・ラオの不等式",
     a: `$\\hat{\\theta}$ を不偏推定量とすると<br>
-$$\\mathrm{Var}(\\hat{\\theta}) \\geq \\frac{1}{nI(\\theta)}$$
+$$V[\\hat{\\theta}] \\geq \\frac{1}{nI(\\theta)}$$
 $$I(\\theta)=E\\!\\left[\\left(\\frac{\\partial\\ln f}{\\partial\\theta}\\right)^2\\right]=-E\\!\\left[\\frac{\\partial^2\\ln f}{\\partial\\theta^2}\\right]$$`
   },
   {
@@ -1145,19 +1167,22 @@ $$f(x_1,\\dots,x_n;\\theta)=g(T,\\theta)\\cdot h(x_1,\\dots,x_n)$$
     q: "チェビシェフの不等式",
     a: `$$P(|X-\\mu|\\geq k\\sigma)\\leq\\frac{1}{k^2}$$
 同値な表現:
-$$P(|X-\\mu|\\geq \\varepsilon)\\leq\\frac{\\mathrm{Var}(X)}{\\varepsilon^2}$$
+$$P(|X-\\mu|\\geq \\varepsilon)\\leq\\frac{V[X]}{\\varepsilon^2}$$
 <span class="param">分布の形を問わず成立</span>`
   },
   {
     category: "統計的推定",
     q: "有限母集団の標本平均の期待値と分散（$N,n,\\mu,\\sigma^2$）",
     a: `$$E[\\bar{X}] = \\mu$$
-$$\\mathrm{Var}(\\bar{X}) = \\frac{\\sigma^2}{n}\\cdot\\frac{N-n}{N-1}$$
+$$V[\\bar{X}] = \\frac{\\sigma^2}{n}\\cdot\\frac{N-n}{N-1}$$
 <span class="param">有限母集団修正因子 $(N-n)/(N-1)$</span><br>
 $N\\to\\infty$ のとき $\\sigma^2/n$ に一致`
   },
 
-  // ── 区間推定（正規母集団） ──
+  // ╔══════════════════════════════════════╗
+  // ║  区間推定（正規母集団）                           ║
+  // ╚══════════════════════════════════════╝
+  // ↓ ここに「区間推定（正規母集団）」のカードを追加できます
   {
     category: "区間推定",
     q: "母分散既知の正規母集団：母平均の推定",
@@ -1286,7 +1311,10 @@ $$Z = \\frac{\\bar{X}-\\lambda}{\\sqrt{\\lambda/n}} \\approx N(0,1)$$
 $$\\bar{X} \\pm z_{\\alpha/2}\\sqrt{\\frac{\\bar{X}}{n}}$$`
   },
 
-  // ── 仮説検定 ──
+  // ╔══════════════════════════════════════╗
+  // ║  仮説検定                                  ║
+  // ╚══════════════════════════════════════╝
+  // ↓ ここに「仮説検定」のカードを追加できます
   {
     category: "仮説検定",
     q: "第1種の誤りとは",
@@ -1329,7 +1357,10 @@ $$\\begin{array}{c|cc}& + & - \\\\ \\hline A & a & b \\\\ B & c & d \\end{array}
 $$\\chi^2 = \\sum_{i,j}\\frac{(|O_{ij}-E_{ij}|-0.5)^2}{E_{ij}}$$`
   },
 
-  // ── 順序統計量 ──
+  // ╔══════════════════════════════════════╗
+  // ║  順序統計量                                 ║
+  // ╚══════════════════════════════════════╝
+  // ↓ ここに「順序統計量」のカードを追加できます
   {
     category: "順序統計量",
     q: "順序統計量 $X_{(i)}$ の PDF（一般）",
@@ -1347,7 +1378,7 @@ $$E[X_{(1)}] = \\frac{1}{n\\lambda}$$`
     q: "標準一様分布の $X_{(i)}$",
     a: `$X_i\\sim U(0,1)$ i.i.d. のとき<br>
 $$X_{(i)} \\sim \\mathrm{Beta}(i,\\, n-i+1)$$
-$$E[X_{(i)}] = \\frac{i}{n+1}, \\quad \\mathrm{Var}(X_{(i)}) = \\frac{i(n-i+1)}{(n+1)^2(n+2)}$$`
+$$E[X_{(i)}] = \\frac{i}{n+1}, \\quad V[X_{(i)}] = \\frac{i(n-i+1)}{(n+1)^2(n+2)}$$`
   },
   {
     category: "順序統計量",
@@ -1355,7 +1386,10 @@ $$E[X_{(i)}] = \\frac{i}{n+1}, \\quad \\mathrm{Var}(X_{(i)}) = \\frac{i(n-i+1)}{
     a: `$$X_{(i)}-X_{(j)} \\sim \\mathrm{Beta}(i-j,\\, n-i+j+1)$$`
   },
 
-  // ── 回帰・時系列 ──
+  // ╔══════════════════════════════════════╗
+  // ║  回帰・時系列                                ║
+  // ╚══════════════════════════════════════╝
+  // ↓ ここに「回帰・時系列」のカードを追加できます
   {
     category: "回帰・時系列",
     q: "重回帰 $y=\\alpha+\\beta_1 x_1+\\beta_2 x_2$ の正規方程式",
@@ -1374,7 +1408,7 @@ $$Y_{n+1}-\\hat{Y}_{n+1} \\sim N\\!\\left(0,\\;\\sigma^2\\left(1+\\frac{1}{n}+\\
     category: "回帰・時系列",
     q: "AR(1)：$Y_t=\\phi_0+\\phi_1 Y_{t-1}+\\varepsilon_t$ の平均・自己共分散",
     a: `$$E[Y_t] = \\frac{\\phi_0}{1-\\phi_1} \\quad (|\\phi_1|<1)$$
-$$\\gamma(0)=\\mathrm{Var}(Y_t)=\\frac{\\sigma_\\varepsilon^2}{1-\\phi_1^2}$$
+$$\\gamma(0)=V[Y_t]=\\frac{\\sigma_\\varepsilon^2}{1-\\phi_1^2}$$
 $$\\gamma(h)=\\phi_1^{|h|}\\gamma(0)$$`
   },
   {
@@ -1418,7 +1452,10 @@ $$\\gamma(1)=\\frac{(\\phi_1-\\theta_1)(1-\\phi_1\\theta_1)\\sigma_\\varepsilon^
 <span class="param">$\\gamma(h)=\\phi_1\\gamma(h-1)$ for $h\\geq2$</span>`
   },
 
-  // ── MLE ──
+  // ╔══════════════════════════════════════╗
+  // ║  MLE                                   ║
+  // ╚══════════════════════════════════════╝
+  // ↓ ここに「MLE」のカードを追加できます
   {
     category: "最尤推定",
     q: "指数分布の MLE（完全標本，平均 $\\mu$）",
@@ -1431,6 +1468,17 @@ $$\\hat{\\mu} = \\bar{X} = \\frac{1}{n}\\sum_{i=1}^n X_i$$`
     a: `$$\\hat{\\mu} = \\frac{\\sum_{i=1}^m X_{(i)} + (n-m)T}{m}$$
 <span class="param">分子 = 総観測時間（故障 + 打ち切り）</span>`
   },
+
+  // ╔══════════════════════════════════════╗
+  // ║  ここに新しいカードを追加できます    ║
+  // ╚══════════════════════════════════════╝
+  // 例:
+  // {
+  //   category: "基本公式",
+  //   q: "チェビシェフの不等式",
+  //   a: `$$P(|X-\\mu| \\geq k\\sigma) \\leq \\frac{1}{k^2}$$`,
+  // },
+
 ];
 
 
@@ -1834,83 +1882,10 @@ function updateReviewBadge() {
 
 
 // =====================================================
-// PDF GENERATION — モーダル内に公式集を直接表示
-// =====================================================
-
-function generatePDF() {
-  var modal   = document.getElementById('pdfModal');
-  var loading = document.getElementById('pdfLoading');
-  var book    = document.getElementById('pdfBookContent');
-  var printBtn= document.getElementById('pdfPrintBtn');
-
-  // 初期化
-  loading.style.display = 'block';
-  book.style.display    = 'none';
-  printBtn.style.display= 'none';
-  modal.style.display   = 'block';
-  modal.scrollTop = 0;
-
-  // 少し遅延してからレンダリング（モーダルが開いてから）
-  setTimeout(function() {
-    book.innerHTML = buildFormulaBook();
-    loading.style.display = 'none';
-    book.style.display    = 'block';
-    printBtn.style.display= 'inline-block';
-
-    // MathJax レンダリング
-    if (window.MathJax && MathJax.typesetPromise && MathJax.startup && MathJax.startup.promise) {
-      MathJax.startup.promise.then(function() {
-        MathJax.typesetPromise([book]);
-      });
-    }
-  }, 50);
-}
-
-function buildFormulaBook() {
-  var catMap = {}, catOrder = [];
-  cards.forEach(function(c) {
-    if (!catMap[c.category]) { catMap[c.category] = []; catOrder.push(c.category); }
-    catMap[c.category].push(c);
-  });
-
-  var num = 1, html = '';
-
-  // 表紙風ヘッダー
-  html += '<div style="text-align:center;padding:32px 20px 24px;border-bottom:2px solid #e8eef5;margin-bottom:16px;">'
-    + '<div style="font-size:1.6rem;font-weight:700;color:#1e3a5f;margin-bottom:6px;">アクチュアリー数学</div>'
-    + '<div style="font-size:1rem;font-weight:700;color:#b8860b;margin-bottom:14px;">公式確認集</div>'
-    + '<div style="width:60px;height:2px;background:#b8860b;margin:0 auto 14px;"></div>'
-    + '<div style="font-size:.8rem;color:#888;">全 ' + cards.length + ' 問 ／ ' + catOrder.length + ' カテゴリ</div>'
-    + '</div>';
-
-  catOrder.forEach(function(cat) {
-    html += '<div style="background:#1e3a5f;color:#fff;padding:6px 12px;border-radius:3px;'
-      + 'font-size:.8rem;font-weight:700;margin:14px 0 5px;">' + cat + '</div>';
-    catMap[cat].forEach(function(card) {
-      html += '<div style="margin-bottom:5px;">'
-        + '<div style="background:#e8eef5;padding:5px 8px;display:flex;align-items:baseline;gap:7px;">'
-        + '<span style="font-size:.58rem;color:#aaa;flex-shrink:0;">No.' + num + '</span>'
-        + '<span style="font-size:.78rem;font-weight:700;color:#2a1f18;line-height:1.65;">' + card.q + '</span>'
-        + '</div>'
-        + '<div style="border-left:3px solid #8b3a2a;background:#fff;padding:5px 8px 6px 10px;'
-        + 'font-size:.72rem;line-height:1.9;color:#1e3a5f;">' + card.a + '</div>'
-        + '</div>';
-      num++;
-    });
-  });
-
-  return html;
-}
-
-function closePDFModal() {
-  document.getElementById('pdfModal').style.display = 'none';
-}
-function setProgress() {}
-
-
-
-// =====================================================
 // CARD LIST MODAL
+
+
+
 // =====================================================
 function showCardList() {
   const modal = document.getElementById('listModal');
@@ -2278,22 +2253,6 @@ updateReviewBadge();
 
 </script>
 
-  <!-- ── PDF Modal ── -->
-  <div id="pdfModal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.72);overflow-y:auto;">
-    <div style="max-width:860px;margin:12px auto 40px;background:#fff;border-radius:6px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.45);">
-      <!-- ヘッダー -->
-      <div style="background:#1e3a5f;color:#fff;padding:11px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;">
-        <span style="font-size:.92rem;font-weight:600;">📄 公式確認集</span>
-        <div style="display:flex;gap:8px;">
-          <button id="pdfPrintBtn" onclick="window.print()" style="display:none;background:#b8860b;color:#fff;border:none;border-radius:4px;padding:6px 14px;font-size:.82rem;font-weight:600;cursor:pointer;font-family:inherit;">🖨 印刷 / PDF保存</button>
-          <button onclick="closePDFModal()" style="background:none;border:none;color:#fff;font-size:1.4rem;cursor:pointer;line-height:1;padding:0 4px;">×</button>
-        </div>
-      </div>
-      <!-- ローディング -->
-      <div id="pdfLoading" style="padding:40px;text-align:center;font-size:.88rem;color:#888;">公式集を生成中...</div>
-      <!-- 公式集本文 -->
-      <div id="pdfBookContent" style="display:none;padding:16px 20px;"></div>
-    </div>
-  </div>
+
 </body>
 <
